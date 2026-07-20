@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PharmaStock — Inventory</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d1117'/><g transform='rotate(45 32 32)'><rect x='16' y='25' width='32' height='14' rx='7' fill='%233fb950'/><rect x='16' y='25' width='16' height='14' rx='7' fill='%2358a6ff'/></g></svg>">
 <style>
   :root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#2a3140;--txt:#e6edf3;
     --muted:#8b949e;--accent:#3fb950;--accent2:#58a6ff;--warn:#d29922;--danger:#f85149;--chip:#21262d;}
@@ -70,6 +71,26 @@
   code{background:var(--panel2);padding:1px 5px;border-radius:4px}
   .hidden{display:none!important}
   a.link{color:var(--accent2)}
+  .logo{width:34px;height:34px;flex:0 0 auto}
+  .tagline{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 18px}
+  /* low-stock */
+  .low td{background:rgba(248,81,73,.07)}
+  .low:hover td{background:rgba(248,81,73,.12)}
+  .low .qty{color:var(--danger)}
+  .lowtag{font-size:9px;color:var(--danger);border:1px solid var(--danger);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:middle;letter-spacing:.5px}
+  .stat.warnstat b{color:var(--danger)}
+  .b-recv{color:var(--accent)}
+  /* mobile */
+  @media(max-width:760px){
+    header{gap:10px}
+    .stats{margin-left:0;width:100%}
+    .stat{flex:1 1 0;min-width:0;padding:8px 6px}
+    #search{min-width:140px}
+    .toolbar .whoami{order:5;width:100%;margin-left:0!important}
+    .wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{min-width:680px}
+    footer{font-size:11px;gap:10px}
+  }
 </style>
 </head>
 <body>
@@ -91,6 +112,7 @@
 <div id="authGate" class="gate hidden">
   <div class="card">
     <h2>Pharma<span>Stock</span></h2>
+    <p class="tagline">A private inventory tracker for your supplements, peptides, and compounds. Log your own stash, search and sort it, track quantities, costs, and reorder points — all synced to your account across every device.</p>
     <p id="authSub">Log in to your inventory.</p>
     <div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email"></div>
     <div class="field"><label>Password</label><input id="authPass" type="password" autocomplete="current-password"></div>
@@ -104,9 +126,12 @@
 <!-- ============ APP ============ -->
 <div id="app" class="hidden">
 <header>
-  <div>
-    <h1>Pharma<span>Stock</span></h1>
-    <div class="sub">Cloud Inventory · synced to your account</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#161b22" stroke="#2a3140"/><g transform="rotate(45 32 32)"><rect x="16" y="25" width="32" height="14" rx="7" fill="#3fb950"/><rect x="16" y="25" width="16" height="14" rx="7" fill="#58a6ff"/></g></svg>
+    <div>
+      <h1>Pharma<span>Stock</span></h1>
+      <div class="sub">Inventory · synced to your account</div>
+    </div>
   </div>
   <div class="stats" id="stats"></div>
 </header>
@@ -313,8 +338,9 @@ function render(){
   document.getElementById('rows').innerHTML=list.map(i=>{
     const st=i.status||'In Stock';
     const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':'b-out';
-    return '<tr>'+
-      '<td class="name">'+esc(i.name)+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+'</td>'+
+    const lo=isLow(i);
+    return '<tr class="'+(lo?'low':'')+'">'+
+      '<td class="name">'+esc(i.name)+(lo?'<span class="lowtag">LOW</span>':'')+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+'</td>'+
       '<td><span class="cat" style="background:'+catColor(i.category)+'22;color:'+catColor(i.category)+'">'+esc(i.category)+'</span></td>'+
       '<td>'+esc(i.form||'')+'</td>'+
       '<td class="qty">'+esc(String(i.qty??''))+'</td>'+
@@ -322,21 +348,33 @@ function render(){
       '<td class="uses">'+esc(i.uses||'')+'</td>'+
       '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'')+'</td>'+
       '<td><span class="badge '+stc+'">'+esc(st)+'</span></td>'+
-      '<td class="rowbtns"><button onclick="edit(\''+i.id+'\')">✎</button><button onclick="del(\''+i.id+'\')">🗑</button></td>'+
+      '<td class="rowbtns">'+(st==='On the Way'?'<button class="b-recv" title="Mark received — move to In Stock" onclick="receive(\''+i.id+'\')">📥</button>':'')+'<button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
     '</tr>';}).join('');
   document.getElementById('empty').style.display=list.length?'none':'block';
   const totalVal=items.reduce((s,i)=>s+(num(i.price)||0),0);
   const onway=items.filter(i=>i.status==='On the Way').length;
+  const lowCount=items.filter(isLow).length;
   document.getElementById('stats').innerHTML=
     '<div class="stat"><b>'+items.length+'</b><small>Items</small></div>'+
     '<div class="stat"><b>'+cats.length+'</b><small>Categories</small></div>'+
     '<div class="stat"><b>'+onway+'</b><small>On the Way</small></div>'+
+    '<div class="stat'+(lowCount?' warnstat':'')+'"><b>'+lowCount+'</b><small>Low Stock</small></div>'+
     '<div class="stat"><b>$'+totalVal.toFixed(0)+'</b><small>Total Cost</small></div>';
   document.getElementById('count').textContent=list.length+' of '+items.length+' shown';
-  document.getElementById('value').textContent='Filtered value: $'+list.reduce((s,i)=>s+(num(i.price)||0),0).toFixed(0);
+  const inStockVal=items.filter(i=>(i.status||'In Stock')==='In Stock').reduce((s,i)=>s+(num(i.price)||0),0);
+  const onWayVal=items.filter(i=>i.status==='On the Way').reduce((s,i)=>s+(num(i.price)||0),0);
+  document.getElementById('value').innerHTML='In stock <b style="color:var(--accent)">$'+inStockVal.toFixed(0)+'</b> · On the way <b style="color:var(--warn)">$'+onWayVal.toFixed(0)+'</b>';
 }
 function setCat(c){activeCat=c;render()}
 function sortBy(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1}render()}
+function isLow(i){const st=i.status||'In Stock';
+  return st!=='On the Way'&&i.reorder!=null&&i.reorder!==''&&num(i.qty)!=null&&num(i.reorder)!=null&&num(i.qty)<=num(i.reorder);}
+async function receive(id){const i=items.find(x=>x.id===id);if(!i)return;
+  if(!confirm('Mark "'+i.name+'" as received (move to In Stock)?'))return;
+  setSync('updating…');
+  const {error}=await sb.from('items').update({status:'In Stock'}).eq('id',id);
+  if(error){setSync('error',true);alert(error.message);return;}
+  await loadItems();}
 
 // ---------- CRUD (synced) ----------
 function buildSuggest(){
