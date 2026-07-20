@@ -153,6 +153,7 @@
     <option value="">All statuses</option><option>In Stock</option><option>On the Way</option><option>Out</option>
   </select>
   <button class="btn-primary" onclick="openModal()">+ Add Item</button>
+  <button onclick="toggleAllGroups()" title="Expand or collapse all categories">⇕ All</button>
   <button onclick="exportCSV()">Export CSV</button>
   <span class="whoami" id="whoami" style="margin-left:auto"></span>
   <button onclick="openSettings()">⚙ Account</button>
@@ -180,11 +181,8 @@
     <div class="grid">
       <div class="field full"><label>Product Name</label><input id="f_name" list="nameSuggest" autocomplete="off"><datalist id="nameSuggest"></datalist></div>
       <div class="field"><label>Category</label>
-        <select id="f_category">
-          <option>AAS / Hormone</option><option>Peptide</option><option>Injectable Amino</option>
-          <option>Pharma / Rx</option><option>Ancillary</option><option>Research Compound</option>
-          <option>Supplement</option><option>Supplement – Gut</option><option>Raw Material</option>
-        </select></div>
+        <input id="f_category" list="catSuggest" autocomplete="off" placeholder="Pick or type a category…">
+        <datalist id="catSuggest"></datalist></div>
       <div class="field"><label>Form</label>
         <select id="f_form">
           <option>Injectable Vial</option><option>Injectable</option><option>Capsule</option>
@@ -253,12 +251,15 @@ const ACCENTS=[['Green','#3fb950'],['Blue','#58a6ff'],['Purple','#a371f7'],['Ora
 const CATCOLORS={'AAS / Hormone':'#f85149','Peptide':'#a371f7','Injectable Amino':'#58a6ff',
   'Pharma / Rx':'#d29922','Ancillary':'#db6d28','Research Compound':'#ec6cb9',
   'Supplement':'#3fb950','Supplement – Gut':'#2ea043','Raw Material':'#8b949e'};
-const COLS=[['name','Product'],['category','Category'],['form','Form'],['qty','Qty'],
+const DEFAULT_CATS=['AAS / Hormone','Peptide','Injectable Amino','Pharma / Rx','Ancillary','Research Compound','Supplement','Supplement – Gut','Raw Material'];
+const COLS=[['name','Product'],['form','Form'],['qty','Qty'],
   ['dose','Dose'],['uses','Use Cases'],['price','Price'],['status','Status'],['','']];
 
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function num(v){const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n}
-function catColor(c){return CATCOLORS[c]||'#8b949e'}
+function catColor(c){if(CATCOLORS[c])return CATCOLORS[c];
+  let h=0;c=c||'';for(let i=0;i<c.length;i++)h=(h*31+c.charCodeAt(i))>>>0;
+  return 'hsl('+(h%360)+' 58% 62%)';}
 function show(id){document.getElementById(id).classList.remove('hidden')}
 function hide(id){document.getElementById(id).classList.add('hidden')}
 
@@ -359,7 +360,6 @@ function render(){
     const lo=isLow(i);
     return '<tr class="'+(lo?'low':'')+'">'+
       '<td class="name">'+esc(i.name)+(lo?'<span class="lowtag">LOW</span>':'')+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+'</td>'+
-      '<td><span class="cat" style="background:'+catColor(i.category)+'22;color:'+catColor(i.category)+'">'+esc(i.category)+'</span></td>'+
       '<td>'+esc(i.form||'')+'</td>'+
       '<td class="qty">'+esc(String(i.qty??''))+'</td>'+
       '<td class="dose">'+esc(i.dose||'')+'</td>'+
@@ -376,7 +376,7 @@ function render(){
     const gi=groups[c].sort(cmp), col=catColor(c), open=!collapsed.has(c);
     const gval=gi.reduce((s,i)=>s+(num(i.price)||0),0);
     html+='<tr class="grouphdr" onclick="toggleGroup(\''+c.replace(/'/g,"\\'")+'\')">'+
-      '<td colspan="9"><span class="gtoggle">'+(open?'▾':'▸')+'</span>'+
+      '<td colspan="8"><span class="gtoggle">'+(open?'▾':'▸')+'</span>'+
       '<span style="color:'+col+'">●</span> <b>'+esc(c)+'</b>'+
       '<span class="gcount">'+gi.length+' item'+(gi.length!==1?'s':'')+' · $'+gval.toFixed(0)+'</span></td></tr>';
     if(open) html+=gi.map(rowHTML).join('');
@@ -409,6 +409,10 @@ async function receive(id,cb){const i=items.find(x=>x.id===id);if(!i)return;
   await loadItems();}
 function toggleGroup(c){collapsed.has(c)?collapsed.delete(c):collapsed.add(c);
   localStorage.setItem('ps_collapsed',JSON.stringify([...collapsed]));render();}
+function toggleAllGroups(){
+  const cats=[...new Set(items.map(i=>i.category))];
+  if(cats.some(c=>!collapsed.has(c))) cats.forEach(c=>collapsed.add(c)); else collapsed.clear();
+  localStorage.setItem('ps_collapsed',JSON.stringify([...collapsed]));render();}
 function applyAccent(){const c=localStorage.getItem('ps_accent');if(c)document.documentElement.style.setProperty('--accent',c);}
 function setAccent(c){localStorage.setItem('ps_accent',c);document.documentElement.style.setProperty('--accent',c);renderSwatches();}
 function renderSwatches(){const cur=localStorage.getItem('ps_accent')||'#3fb950';
@@ -428,12 +432,18 @@ function autofillFromName(){
   if(!m)return;
   ['category','form','unit','dose','uses'].forEach(f=>{if(m[f])document.getElementById('f_'+f).value=m[f];});
 }
+function buildCatSuggest(){
+  const set=new Set(DEFAULT_CATS);
+  items.forEach(i=>{if(i.category)set.add(i.category);});
+  document.getElementById('catSuggest').innerHTML=[...set].sort().map(c=>'<option value="'+esc(c)+'">').join('');
+}
 function openModal(){document.getElementById('modalTitle').textContent='Add Item';
-  ['id','name','qty','unit','dose','price','reorder','uses','notes'].forEach(f=>document.getElementById('f_'+f).value='');
-  document.getElementById('f_status').value='In Stock';buildSuggest();document.getElementById('overlay').classList.add('show');}
+  ['id','name','qty','unit','dose','price','reorder','uses','notes','category'].forEach(f=>document.getElementById('f_'+f).value='');
+  document.getElementById('f_status').value='In Stock';buildSuggest();buildCatSuggest();document.getElementById('overlay').classList.add('show');}
 function closeModal(){document.getElementById('overlay').classList.remove('show')}
 function edit(id){const i=items.find(x=>x.id===id);if(!i)return;
   document.getElementById('modalTitle').textContent='Edit Item';
+  buildCatSuggest();
   document.getElementById('f_id').value=i.id;
   ['name','category','form','qty','unit','dose','status','reorder','uses','notes'].forEach(f=>document.getElementById('f_'+f).value=i[f]||'');
   document.getElementById('f_price').value=i.price??'';
@@ -442,7 +452,7 @@ async function saveItem(){
   const g=f=>document.getElementById('f_'+f).value.trim();
   const name=g('name');if(!name){alert('Name required');return;}
   const id=g('id');
-  const obj={name,category:g('category'),form:g('form'),qty:g('qty'),unit:g('unit'),
+  const obj={name,category:g('category')||'Uncategorized',form:g('form'),qty:g('qty'),unit:g('unit'),
     dose:g('dose'),price:g('price')?Number(g('price')):null,status:g('status'),
     reorder:g('reorder'),uses:g('uses'),notes:g('notes')};
   setSync('saving…');
