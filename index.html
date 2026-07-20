@@ -80,6 +80,18 @@
   .lowtag{font-size:9px;color:var(--danger);border:1px solid var(--danger);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:middle;letter-spacing:.5px}
   .stat.warnstat b{color:var(--danger)}
   .b-recv{color:var(--accent)}
+  /* grouped view */
+  .grouphdr{cursor:pointer}
+  .grouphdr td{background:var(--panel2);border-top:1px solid var(--line);border-bottom:2px solid var(--line);padding:10px 12px;font-size:13px}
+  .grouphdr:hover td{background:#222c3b}
+  .gtoggle{display:inline-block;width:16px;color:var(--muted)}
+  .gcount{color:var(--muted);font-size:11px;margin-left:10px;font-weight:400}
+  /* arrived checkbox */
+  .arrived{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;white-space:nowrap;margin-left:8px}
+  .arrived input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+  /* accent swatches */
+  .swatch{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);padding:0;cursor:pointer}
+  .swatch.sel{outline:2px solid var(--txt);outline-offset:2px}
   /* mobile */
   @media(max-width:760px){
     header{gap:10px}
@@ -213,6 +225,10 @@
       <button class="btn-primary" style="margin-top:10px" onclick="changePassword()">Update password</button>
     </div>
     <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:18px">
+      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Accent color</label>
+      <div id="swatches" style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap"></div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:18px">
       <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your data</label>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button onclick="exportCSV()">Export my data (CSV)</button>
@@ -231,6 +247,8 @@ const BAKED={url:"https://lmxzonnrisfzgkqfdxne.supabase.co",key:"eyJhbGciOiJIUzI
 const CFG_KEY='acepharma_supabase_cfg';
 let sb=null, items=[], user=null;
 let sortKey='category', sortDir=1, activeCat='', activeStatus='', q='', signupMode=false;
+let collapsed=new Set(JSON.parse(localStorage.getItem('ps_collapsed')||'[]'));
+const ACCENTS=[['Green','#3fb950'],['Blue','#58a6ff'],['Purple','#a371f7'],['Orange','#db6d28'],['Pink','#ec6cb9'],['Teal','#2dd4bf'],['Red','#f85149']];
 
 const CATCOLORS={'AAS / Hormone':'#f85149','Peptide':'#a371f7','Injectable Amino':'#58a6ff',
   'Pharma / Rx':'#d29922','Ancillary':'#db6d28','Research Compound':'#ec6cb9',
@@ -246,6 +264,7 @@ function hide(id){document.getElementById(id).classList.add('hidden')}
 
 // ---------- boot ----------
 function boot(){
+  applyAccent();
   let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'null');
   if(!cfg && BAKED.url.indexOf('PASTE')===-1) cfg=BAKED;
   if(!cfg){show('setupGate');return;}
@@ -330,11 +349,11 @@ function render(){
     if(q){const hay=(i.name+' '+i.category+' '+(i.uses||'')+' '+(i.dose||'')+' '+(i.notes||'')+' '+(i.form||'')).toLowerCase();
       if(!hay.includes(q))return false;}
     return true;});
-  list.sort((a,b)=>{let x=a[sortKey],y=b[sortKey];
+  const cmp=(a,b)=>{let x=a[sortKey],y=b[sortKey];
     if(sortKey==='qty'||sortKey==='price'){x=num(x)??-1;y=num(y)??-1;return (x-y)*sortDir;}
     x=(x==null?'':String(x)).toLowerCase();y=(y==null?'':String(y)).toLowerCase();
-    return x<y?-sortDir:x>y?sortDir:0;});
-  document.getElementById('rows').innerHTML=list.map(i=>{
+    return x<y?-sortDir:x>y?sortDir:0;};
+  const rowHTML=i=>{
     const st=i.status||'In Stock';
     const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':'b-out';
     const lo=isLow(i);
@@ -346,9 +365,23 @@ function render(){
       '<td class="dose">'+esc(i.dose||'')+'</td>'+
       '<td class="uses">'+esc(i.uses||'')+'</td>'+
       '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'')+'</td>'+
-      '<td><span class="badge '+stc+'">'+esc(st)+'</span></td>'+
-      '<td class="rowbtns">'+(st==='On the Way'?'<button class="b-recv" title="Mark received — move to In Stock" onclick="receive(\''+i.id+'\')">📥</button>':'')+'<button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
-    '</tr>';}).join('');
+      '<td><span class="badge '+stc+'">'+esc(st)+'</span>'+(st==='On the Way'?'<label class="arrived" title="Tick when it arrives — moves to In Stock"><input type="checkbox" onchange="receive(\''+i.id+'\',this)"> arrived</label>':'')+'</td>'+
+      '<td class="rowbtns"><button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
+    '</tr>';};
+  // group by category (collapsible)
+  const groups={};
+  list.forEach(i=>{(groups[i.category]=groups[i.category]||[]).push(i);});
+  let html='';
+  Object.keys(groups).sort().forEach(c=>{
+    const gi=groups[c].sort(cmp), col=catColor(c), open=!collapsed.has(c);
+    const gval=gi.reduce((s,i)=>s+(num(i.price)||0),0);
+    html+='<tr class="grouphdr" onclick="toggleGroup(\''+c.replace(/'/g,"\\'")+'\')">'+
+      '<td colspan="9"><span class="gtoggle">'+(open?'▾':'▸')+'</span>'+
+      '<span style="color:'+col+'">●</span> <b>'+esc(c)+'</b>'+
+      '<span class="gcount">'+gi.length+' item'+(gi.length!==1?'s':'')+' · $'+gval.toFixed(0)+'</span></td></tr>';
+    if(open) html+=gi.map(rowHTML).join('');
+  });
+  document.getElementById('rows').innerHTML=html;
   document.getElementById('empty').style.display=list.length?'none':'block';
   const totalVal=items.reduce((s,i)=>s+(num(i.price)||0),0);
   const onway=items.filter(i=>i.status==='On the Way').length;
@@ -368,12 +401,19 @@ function setCat(c){activeCat=c;render()}
 function sortBy(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1}render()}
 function isLow(i){const st=i.status||'In Stock';
   return st!=='On the Way'&&i.reorder!=null&&i.reorder!==''&&num(i.qty)!=null&&num(i.reorder)!=null&&num(i.qty)<=num(i.reorder);}
-async function receive(id){const i=items.find(x=>x.id===id);if(!i)return;
-  if(!confirm('Mark "'+i.name+'" as received (move to In Stock)?'))return;
+async function receive(id,cb){const i=items.find(x=>x.id===id);if(!i)return;
+  if(!confirm('Mark "'+i.name+'" as arrived (move to In Stock)?')){if(cb)cb.checked=false;return;}
   setSync('updating…');
   const {error}=await sb.from('items').update({status:'In Stock'}).eq('id',id);
-  if(error){setSync('error',true);alert(error.message);return;}
+  if(error){setSync('error',true);alert(error.message);if(cb)cb.checked=false;return;}
   await loadItems();}
+function toggleGroup(c){collapsed.has(c)?collapsed.delete(c):collapsed.add(c);
+  localStorage.setItem('ps_collapsed',JSON.stringify([...collapsed]));render();}
+function applyAccent(){const c=localStorage.getItem('ps_accent');if(c)document.documentElement.style.setProperty('--accent',c);}
+function setAccent(c){localStorage.setItem('ps_accent',c);document.documentElement.style.setProperty('--accent',c);renderSwatches();}
+function renderSwatches(){const cur=localStorage.getItem('ps_accent')||'#3fb950';
+  const el=document.getElementById('swatches');if(!el)return;
+  el.innerHTML=ACCENTS.map(([n,c])=>'<button class="swatch'+(c===cur?' sel':'')+'" title="'+n+'" style="background:'+c+'" onclick="setAccent(\''+c+'\')"></button>').join('');}
 
 // ---------- CRUD (synced) ----------
 function buildSuggest(){
@@ -439,6 +479,7 @@ function openSettings(){
   document.getElementById('setEmail').textContent=user.email;
   document.getElementById('set_pw1').value='';document.getElementById('set_pw2').value='';
   document.getElementById('setMsg').innerHTML='';
+  renderSwatches();
   document.getElementById('settingsOverlay').classList.add('show');
 }
 function closeSettings(){document.getElementById('settingsOverlay').classList.remove('show')}
