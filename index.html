@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PharmaStock — Inventory</title>
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#2a3140;--txt:#e6edf3;
+    --muted:#8b949e;--accent:#3fb950;--accent2:#58a6ff;--warn:#d29922;--danger:#f85149;--chip:#21262d;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:linear-gradient(180deg,#11161d,#0d1117)}
+  h1{margin:0;font-size:20px;letter-spacing:2px}h1 span{color:var(--accent)}
+  .sub{color:var(--muted);font-size:12px}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px;text-align:center;min-width:76px}
+  .stat b{display:block;font-size:18px;color:var(--accent2)}
+  .stat small{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+  .toolbar{padding:14px 22px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line)}
+  input,select,button,textarea{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 11px;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent2)}
+  #search{flex:1;min-width:200px}
+  button{cursor:pointer;transition:.15s}button:hover{border-color:var(--accent2)}
+  .btn-primary{background:var(--accent);color:#04260d;border-color:var(--accent);font-weight:600}
+  .btn-primary:hover{filter:brightness(1.1)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 22px 12px}
+  .chip{background:var(--chip);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:5px 13px;cursor:pointer;font-size:12px}
+  .chip.active{background:var(--accent2);color:#03121f;border-color:var(--accent2);font-weight:600}
+  .wrap{padding:0 22px 70px}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);cursor:pointer;user-select:none;background:var(--panel)}
+  th:hover{color:var(--txt)}tr:hover td{background:var(--panel2)}
+  .cat{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;white-space:nowrap}
+  .name{font-weight:600}.dose{color:var(--muted);font-size:12px}
+  .uses{color:var(--muted);font-size:12px;max-width:280px}
+  .qty{font-weight:600;text-align:right}.price{text-align:right;color:var(--accent)}
+  .badge{font-size:10px;padding:2px 7px;border-radius:20px;white-space:nowrap}
+  .b-stock{background:rgba(63,185,80,.15);color:var(--accent)}
+  .b-way{background:rgba(210,153,34,.15);color:var(--warn)}
+  .b-out{background:rgba(248,81,73,.15);color:var(--danger)}
+  .rowbtns button{padding:4px 8px;font-size:12px;background:transparent;border-color:transparent}
+  .rowbtns button:hover{background:var(--panel);border-color:var(--line)}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:520px;max-height:90vh;overflow:auto}
+  .modal h2{margin:0 0 16px;font-size:17px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{display:flex;flex-direction:column;gap:4px}.field.full{grid-column:1/-1}
+  .field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel2)}
+  textarea{resize:vertical;min-height:52px}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+  footer{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:8px 22px;font-size:12px;color:var(--muted);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .sortarrow{font-size:9px}
+  /* gate screens */
+  .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:30px;width:100%;max-width:420px}
+  .card h2{margin:0 0 6px;letter-spacing:2px}.card h2 span{color:var(--accent)}
+  .card p{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .card .field{margin-bottom:12px}
+  .card button{width:100%;margin-top:6px;padding:11px}
+  .switch{text-align:center;margin-top:14px;font-size:13px;color:var(--muted)}
+  .switch a{color:var(--accent2);cursor:pointer}
+  .msg{font-size:13px;padding:9px 12px;border-radius:8px;margin-top:12px}
+  .msg.err{background:rgba(248,81,73,.12);color:var(--danger)}
+  .msg.ok{background:rgba(63,185,80,.12);color:var(--accent)}
+  .whoami{font-size:12px;color:var(--muted)}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+  .hidden{display:none!important}
+  a.link{color:var(--accent2)}
+</style>
+</head>
+<body>
+
+<!-- ============ SETUP GATE ============ -->
+<div id="setupGate" class="gate">
+  <div class="card">
+    <h2>Pharma<span>Stock</span></h2>
+    <p>First-time setup. Connect this app to your free Supabase project. You only do this once per computer.</p>
+    <div class="field"><label>Supabase Project URL</label><input id="cfgUrl" placeholder="https://xxxxx.supabase.co"></div>
+    <div class="field"><label>Supabase anon public key</label><input id="cfgKey" placeholder="eyJhbGci..."></div>
+    <button class="btn-primary" onclick="saveConfig()">Connect</button>
+    <div class="switch">Find both under <b>Project Settings → API</b> in Supabase.<br>The anon key is safe to use here — your data is protected by row-level security.</div>
+    <div id="setupMsg"></div>
+  </div>
+</div>
+
+<!-- ============ AUTH GATE ============ -->
+<div id="authGate" class="gate hidden">
+  <div class="card">
+    <h2>Pharma<span>Stock</span></h2>
+    <p id="authSub">Log in to your inventory.</p>
+    <div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email"></div>
+    <div class="field"><label>Password</label><input id="authPass" type="password" autocomplete="current-password"></div>
+    <button class="btn-primary" id="authBtn" onclick="doAuth()">Log In</button>
+    <div class="switch" id="authSwitch">No account yet? <a onclick="toggleAuth()">Sign up</a></div>
+    <div id="authMsg"></div>
+    <div class="switch" style="margin-top:18px"><a onclick="resetConfig()" style="color:var(--muted)">Change Supabase connection</a></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+<header>
+  <div>
+    <h1>Pharma<span>Stock</span></h1>
+    <div class="sub">Cloud Inventory · synced to your account</div>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="toolbar">
+  <input id="search" placeholder="Search name, use case, dose, notes…">
+  <select id="statusFilter">
+    <option value="">All statuses</option><option>In Stock</option><option>On the Way</option><option>Out</option>
+  </select>
+  <button class="btn-primary" onclick="openModal()">+ Add Item</button>
+  <button onclick="exportCSV()">Export CSV</button>
+  <span class="whoami" id="whoami" style="margin-left:auto"></span>
+  <button onclick="openSettings()">⚙ Account</button>
+  <button onclick="logout()">Log out</button>
+</div>
+
+<div class="chips" id="catChips"></div>
+
+<div class="wrap">
+  <table><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
+  <div class="empty" id="empty" style="display:none">No items yet. Click <b>+ Add Item</b> to add your first product.</div>
+</div>
+
+<footer>
+  <span id="count"></span><span id="value"></span>
+  <span id="syncState" style="margin-left:auto">●&nbsp;synced</span>
+</footer>
+</div>
+
+<!-- edit modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add Item</h2>
+    <input type="hidden" id="f_id">
+    <div class="grid">
+      <div class="field full"><label>Product Name</label><input id="f_name" list="nameSuggest" autocomplete="off"><datalist id="nameSuggest"></datalist></div>
+      <div class="field"><label>Category</label>
+        <select id="f_category">
+          <option>AAS / Hormone</option><option>Peptide</option><option>Injectable Amino</option>
+          <option>Pharma / Rx</option><option>Ancillary</option><option>Research Compound</option>
+          <option>Supplement</option><option>Supplement – Gut</option><option>Raw Material</option>
+        </select></div>
+      <div class="field"><label>Form</label>
+        <select id="f_form">
+          <option>Injectable Vial</option><option>Injectable</option><option>Capsule</option>
+          <option>Tablet</option><option>Softgel</option><option>Powder</option>
+          <option>Liquid</option><option>Pen</option><option>Kit</option><option>Compound</option>
+        </select></div>
+      <div class="field"><label>Qty on Hand</label><input id="f_qty"></div>
+      <div class="field"><label>Unit</label><input id="f_unit" placeholder="Vials, Caps, Box…"></div>
+      <div class="field"><label>Dose / Conc.</label><input id="f_dose" placeholder="100 mg/cap"></div>
+      <div class="field"><label>Price ($)</label><input id="f_price" type="number" step="0.01"></div>
+      <div class="field"><label>Status</label>
+        <select id="f_status"><option>In Stock</option><option>On the Way</option><option>Out</option></select></div>
+      <div class="field"><label>Reorder At</label><input id="f_reorder"></div>
+      <div class="field full"><label>Use Cases</label><input id="f_uses"></div>
+      <div class="field full"><label>Notes</label><textarea id="f_notes"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveItem()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- account settings modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>Account Settings</h2>
+    <div class="field full" style="margin-bottom:16px">
+      <label>Signed in as</label>
+      <div id="setEmail" style="padding:8px 0;font-weight:600"></div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:16px">
+      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Change password</label>
+      <div class="grid" style="margin-top:8px">
+        <div class="field"><label>New password</label><input id="set_pw1" type="password" autocomplete="new-password"></div>
+        <div class="field"><label>Confirm</label><input id="set_pw2" type="password" autocomplete="new-password"></div>
+      </div>
+      <button class="btn-primary" style="margin-top:10px" onclick="changePassword()">Update password</button>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:16px;margin-top:18px">
+      <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your data</label>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button onclick="exportCSV()">Export my data (CSV)</button>
+        <button onclick="deleteAllItems()" style="border-color:var(--danger);color:var(--danger)">Delete all my items</button>
+      </div>
+    </div>
+    <div id="setMsg"></div>
+    <div class="modal-actions"><button onclick="closeSettings()">Close</button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SEED = [];
+const BAKED={url:"https://lmxzonnrisfzgkqfdxne.supabase.co",key:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxteHpvbm5yaXNmemdrcWZkeG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NTcxODYsImV4cCI6MjEwMDEzMzE4Nn0.y4MQaEbX3gr4MCaHCQ4reiRBI51UVRywh7TvWVMk5D0"};
+const CFG_KEY='acepharma_supabase_cfg';
+let sb=null, items=[], user=null;
+let sortKey='category', sortDir=1, activeCat='', activeStatus='', q='', signupMode=false;
+
+const CATCOLORS={'AAS / Hormone':'#f85149','Peptide':'#a371f7','Injectable Amino':'#58a6ff',
+  'Pharma / Rx':'#d29922','Ancillary':'#db6d28','Research Compound':'#ec6cb9',
+  'Supplement':'#3fb950','Supplement – Gut':'#2ea043','Raw Material':'#8b949e'};
+const COLS=[['name','Product'],['category','Category'],['form','Form'],['qty','Qty'],
+  ['dose','Dose'],['uses','Use Cases'],['price','Price'],['status','Status'],['','']];
+
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function num(v){const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n}
+function catColor(c){return CATCOLORS[c]||'#8b949e'}
+function show(id){document.getElementById(id).classList.remove('hidden')}
+function hide(id){document.getElementById(id).classList.add('hidden')}
+
+// ---------- boot ----------
+function boot(){
+  let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'null');
+  if(!cfg && BAKED.url.indexOf('PASTE')===-1) cfg=BAKED;
+  if(!cfg){show('setupGate');return;}
+  initClient(cfg);
+}
+function initClient(cfg){
+  try{ sb=supabase.createClient(cfg.url,cfg.key); }
+  catch(e){ document.getElementById('setupMsg').innerHTML='<div class="msg err">Could not connect. Check the URL/key.</div>'; show('setupGate'); return; }
+  hide('setupGate');
+  sb.auth.getSession().then(({data})=>{
+    if(data.session){ user=data.session.user; enterApp(); }
+    else show('authGate');
+  });
+  sb.auth.onAuthStateChange((_e,session)=>{
+    if(session){user=session.user;} 
+  });
+}
+function saveConfig(){
+  const url=document.getElementById('cfgUrl').value.trim().replace(/\/$/,'');
+  const key=document.getElementById('cfgKey').value.trim();
+  if(!/^https:\/\/.+\.supabase\.co$/.test(url)){document.getElementById('setupMsg').innerHTML='<div class="msg err">That URL looks off — it should look like https://xxxxx.supabase.co</div>';return;}
+  if(key.length<30){document.getElementById('setupMsg').innerHTML='<div class="msg err">That anon key looks too short.</div>';return;}
+  localStorage.setItem(CFG_KEY,JSON.stringify({url,key}));
+  initClient({url,key});
+}
+function resetConfig(){localStorage.removeItem(CFG_KEY);location.reload();}
+
+// ---------- auth ----------
+function toggleAuth(){
+  signupMode=!signupMode;
+  document.getElementById('authSub').textContent=signupMode?'Create your account.':'Log in to your inventory.';
+  document.getElementById('authBtn').textContent=signupMode?'Sign Up':'Log In';
+  document.getElementById('authSwitch').innerHTML=signupMode?
+    'Already have an account? <a onclick="toggleAuth()">Log in</a>':
+    'No account yet? <a onclick="toggleAuth()">Sign up</a>';
+  document.getElementById('authMsg').innerHTML='';
+}
+async function doAuth(){
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPass').value;
+  const box=document.getElementById('authMsg');
+  if(!email||!password){box.innerHTML='<div class="msg err">Enter email and password.</div>';return;}
+  box.innerHTML='<div class="msg">Working…</div>';
+  let res;
+  if(signupMode) res=await sb.auth.signUp({email,password});
+  else res=await sb.auth.signInWithPassword({email,password});
+  if(res.error){box.innerHTML='<div class="msg err">'+esc(res.error.message)+'</div>';return;}
+  if(signupMode && !res.data.session){
+    box.innerHTML='<div class="msg ok">Account created! Check your email to confirm, then log in.</div>';return;
+  }
+  user=res.data.user; enterApp();
+}
+async function logout(){await sb.auth.signOut();location.reload();}
+
+// ---------- app ----------
+async function enterApp(){
+  hide('authGate');show('app');
+  document.getElementById('whoami').textContent=user.email;
+  await loadItems();
+}
+async function loadItems(){
+  setSync('syncing…');
+  const {data,error}=await sb.from('items').select('*');
+  if(error){setSync('error: '+error.message,true);return;}
+  items=data||[];render();setSync('synced');
+}
+function setSync(t,err){const s=document.getElementById('syncState');if(s){s.textContent='● '+t;s.style.color=err?'var(--danger)':'var(--muted)';}}
+
+function render(){
+  const cats=[...new Set(items.map(i=>i.category))].sort();
+  const chips=document.getElementById('catChips');
+  chips.innerHTML='<div class="chip '+(activeCat===''?'active':'')+'" onclick="setCat(\'\')">All ('+items.length+')</div>'+
+    cats.map(c=>{const n=items.filter(i=>i.category===c).length;
+      return '<div class="chip '+(activeCat===c?'active':'')+'" onclick="setCat(\''+c.replace(/'/g,"\\'")+'\')"><span style="color:'+catColor(c)+'">●</span> '+esc(c)+' ('+n+')</div>';}).join('');
+  document.getElementById('head').innerHTML=COLS.map(([k,l])=>{
+    if(!k)return '<th></th>';
+    const a=sortKey===k?'<span class="sortarrow">'+(sortDir>0?'▲':'▼')+'</span>':'';
+    return '<th onclick="sortBy(\''+k+'\')">'+l+' '+a+'</th>';}).join('');
+  let list=items.filter(i=>{
+    if(activeCat&&i.category!==activeCat)return false;
+    if(activeStatus&&(i.status||'In Stock')!==activeStatus)return false;
+    if(q){const hay=(i.name+' '+i.category+' '+(i.uses||'')+' '+(i.dose||'')+' '+(i.notes||'')+' '+(i.form||'')).toLowerCase();
+      if(!hay.includes(q))return false;}
+    return true;});
+  list.sort((a,b)=>{let x=a[sortKey],y=b[sortKey];
+    if(sortKey==='qty'||sortKey==='price'){x=num(x)??-1;y=num(y)??-1;return (x-y)*sortDir;}
+    x=(x==null?'':String(x)).toLowerCase();y=(y==null?'':String(y)).toLowerCase();
+    return x<y?-sortDir:x>y?sortDir:0;});
+  document.getElementById('rows').innerHTML=list.map(i=>{
+    const st=i.status||'In Stock';
+    const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':'b-out';
+    return '<tr>'+
+      '<td class="name">'+esc(i.name)+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+'</td>'+
+      '<td><span class="cat" style="background:'+catColor(i.category)+'22;color:'+catColor(i.category)+'">'+esc(i.category)+'</span></td>'+
+      '<td>'+esc(i.form||'')+'</td>'+
+      '<td class="qty">'+esc(String(i.qty??''))+'</td>'+
+      '<td class="dose">'+esc(i.dose||'')+'</td>'+
+      '<td class="uses">'+esc(i.uses||'')+'</td>'+
+      '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'')+'</td>'+
+      '<td><span class="badge '+stc+'">'+esc(st)+'</span></td>'+
+      '<td class="rowbtns"><button onclick="edit(\''+i.id+'\')">✎</button><button onclick="del(\''+i.id+'\')">🗑</button></td>'+
+    '</tr>';}).join('');
+  document.getElementById('empty').style.display=list.length?'none':'block';
+  const totalVal=items.reduce((s,i)=>s+(num(i.price)||0),0);
+  const onway=items.filter(i=>i.status==='On the Way').length;
+  document.getElementById('stats').innerHTML=
+    '<div class="stat"><b>'+items.length+'</b><small>Items</small></div>'+
+    '<div class="stat"><b>'+cats.length+'</b><small>Categories</small></div>'+
+    '<div class="stat"><b>'+onway+'</b><small>On the Way</small></div>'+
+    '<div class="stat"><b>$'+totalVal.toFixed(0)+'</b><small>Total Cost</small></div>';
+  document.getElementById('count').textContent=list.length+' of '+items.length+' shown';
+  document.getElementById('value').textContent='Filtered value: $'+list.reduce((s,i)=>s+(num(i.price)||0),0).toFixed(0);
+}
+function setCat(c){activeCat=c;render()}
+function sortBy(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1}render()}
+
+// ---------- CRUD (synced) ----------
+function buildSuggest(){
+  const seen={},opts=[];
+  items.forEach(i=>{const k=(i.name||'').toLowerCase();if(i.name&&!seen[k]){seen[k]=i;opts.push(i.name);}});
+  document.getElementById('nameSuggest').innerHTML=opts.sort().map(n=>'<option value="'+esc(n)+'">').join('');
+  window._suggestMap=seen;
+}
+function autofillFromName(){
+  if(document.getElementById('f_id').value)return; // only when adding
+  const m=window._suggestMap&&window._suggestMap[document.getElementById('f_name').value.trim().toLowerCase()];
+  if(!m)return;
+  ['category','form','unit','dose','uses'].forEach(f=>{if(m[f])document.getElementById('f_'+f).value=m[f];});
+}
+function openModal(){document.getElementById('modalTitle').textContent='Add Item';
+  ['id','name','qty','unit','dose','price','reorder','uses','notes'].forEach(f=>document.getElementById('f_'+f).value='');
+  document.getElementById('f_status').value='In Stock';buildSuggest();document.getElementById('overlay').classList.add('show');}
+function closeModal(){document.getElementById('overlay').classList.remove('show')}
+function edit(id){const i=items.find(x=>x.id===id);if(!i)return;
+  document.getElementById('modalTitle').textContent='Edit Item';
+  document.getElementById('f_id').value=i.id;
+  ['name','category','form','qty','unit','dose','status','reorder','uses','notes'].forEach(f=>document.getElementById('f_'+f).value=i[f]||'');
+  document.getElementById('f_price').value=i.price??'';
+  document.getElementById('overlay').classList.add('show');}
+async function saveItem(){
+  const g=f=>document.getElementById('f_'+f).value.trim();
+  const name=g('name');if(!name){alert('Name required');return;}
+  const id=g('id');
+  const obj={name,category:g('category'),form:g('form'),qty:g('qty'),unit:g('unit'),
+    dose:g('dose'),price:g('price')?Number(g('price')):null,status:g('status'),
+    reorder:g('reorder'),uses:g('uses'),notes:g('notes')};
+  setSync('saving…');
+  let error;
+  if(id){({error}=await sb.from('items').update(obj).eq('id',id));}
+  else{obj.user_id=user.id;({error}=await sb.from('items').insert(obj));}
+  if(error){setSync('error: '+error.message,true);alert(error.message);return;}
+  closeModal();await loadItems();
+}
+async function del(id){const i=items.find(x=>x.id===id);
+  if(!confirm('Delete "'+i.name+'"?'))return;
+  setSync('deleting…');
+  const {error}=await sb.from('items').delete().eq('id',id);
+  if(error){setSync('error',true);alert(error.message);return;}
+  await loadItems();
+}
+async function importStarter(){
+  if(!confirm('Load your 128 starter items into your account?'))return;
+  setSync('importing…');
+  const rows=SEED.map(s=>Object.assign({},s,{user_id:user.id}));
+  const {error}=await sb.from('items').insert(rows);
+  if(error){setSync('error',true);alert(error.message);return;}
+  await loadItems();
+}
+function exportCSV(){
+  const cols=['name','category','form','qty','unit','dose','price','status','reorder','uses','notes'];
+  const rows=[cols.join(',')].concat(items.map(i=>cols.map(c=>{
+    let v=i[c]==null?'':String(i[c]);if(/[",\n]/.test(v))v='"'+v.replace(/"/g,'""')+'"';return v;}).join(',')));
+  const b=new Blob([rows.join('\n')],{type:'text/csv'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='pharmastock_inventory.csv';a.click();
+}
+// ---------- account settings ----------
+function openSettings(){
+  document.getElementById('setEmail').textContent=user.email;
+  document.getElementById('set_pw1').value='';document.getElementById('set_pw2').value='';
+  document.getElementById('setMsg').innerHTML='';
+  document.getElementById('settingsOverlay').classList.add('show');
+}
+function closeSettings(){document.getElementById('settingsOverlay').classList.remove('show')}
+async function changePassword(){
+  const p1=document.getElementById('set_pw1').value, p2=document.getElementById('set_pw2').value;
+  const box=document.getElementById('setMsg');
+  if(p1.length<6){box.innerHTML='<div class="msg err">Password must be at least 6 characters.</div>';return;}
+  if(p1!==p2){box.innerHTML='<div class="msg err">Passwords don\'t match.</div>';return;}
+  box.innerHTML='<div class="msg">Updating…</div>';
+  const {error}=await sb.auth.updateUser({password:p1});
+  if(error){box.innerHTML='<div class="msg err">'+esc(error.message)+'</div>';return;}
+  box.innerHTML='<div class="msg ok">Password updated.</div>';
+  document.getElementById('set_pw1').value='';document.getElementById('set_pw2').value='';
+}
+async function deleteAllItems(){
+  if(!confirm('Permanently delete ALL of your items? This cannot be undone.'))return;
+  if(!confirm('Are you absolutely sure? Everything in your inventory will be erased.'))return;
+  const box=document.getElementById('setMsg');
+  box.innerHTML='<div class="msg">Deleting…</div>';
+  const {error}=await sb.from('items').delete().eq('user_id',user.id);
+  if(error){box.innerHTML='<div class="msg err">'+esc(error.message)+'</div>';return;}
+  box.innerHTML='<div class="msg ok">All items deleted.</div>';
+  await loadItems();
+}
+document.getElementById('settingsOverlay').addEventListener('click',e=>{if(e.target.id==='settingsOverlay')closeSettings()});
+
+document.getElementById('f_name').addEventListener('input',autofillFromName);
+document.getElementById('search').oninput=e=>{q=e.target.value.toLowerCase().trim();render()};
+document.getElementById('statusFilter').onchange=e=>{activeStatus=e.target.value;render()};
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+boot();
+</script>
+</body>
+</html>
