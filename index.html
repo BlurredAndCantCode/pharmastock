@@ -147,6 +147,23 @@
   #hamb{display:none;font-size:18px;padding:6px 10px;margin-right:4px}
   #navscrim{display:none}
   .b-idea{background:rgba(88,166,255,.15);color:var(--accent2)}
+  /* catalog picker */
+  .modal.wide{max-width:680px}
+  .catToolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  #catSearch{flex:1;min-width:160px}
+  .catChips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .catlist{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .catrow{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+  .catrow:last-child{border-bottom:none}
+  .catrow:hover{background:var(--panel2)}
+  .catrow.added{opacity:.5;cursor:default}
+  .catrow input[type=checkbox]{margin-top:3px;width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+  .catrow .ci-name{font-weight:600}
+  .catrow .ci-meta{color:var(--muted);font-size:11px}
+  .catrow .ci-tag{margin-left:auto;font-size:10px;color:var(--muted);white-space:nowrap;padding-left:8px}
+  .catEmpty{padding:30px;text-align:center;color:var(--muted)}
+  .catFoot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:10px;flex-wrap:wrap}
+  .catFoot .muted{color:var(--muted);font-size:12px}
   @media(max-width:820px){
     #app{display:block}
     #sidebar{position:fixed;left:0;top:0;bottom:0;width:230px;z-index:40;transform:translateX(-100%);transition:transform .2s;box-shadow:2px 0 24px rgba(0,0,0,.4)}
@@ -234,6 +251,7 @@
     <option value="effect">Group: Effect</option>
   </select>
   <button class="btn-primary" id="addBtn" onclick="openModal()">+ Add Item</button>
+  <button onclick="openCatalog()" title="Browse common items and add several at once">📋 Add from Catalog</button>
   <button onclick="toggleAllGroups()" title="Expand or collapse all categories">⇕ All</button>
   <button onclick="exportCSV()">Export CSV</button>
   <span class="whoami" id="whoami" style="margin-left:auto"></span>
@@ -340,9 +358,30 @@
   </div>
 </div>
 
+<!-- catalog picker modal -->
+<div class="overlay" id="catalogOverlay">
+  <div class="modal wide">
+    <h2>📋 Add from Catalog</h2>
+    <p class="tagline" style="margin-bottom:14px">Browse common items, check the ones you want, then add them to your inventory in one go — name, category, form, dose and use case are filled in for you.</p>
+    <div class="catToolbar">
+      <input id="catSearch" placeholder="Search catalog…">
+      <button onclick="catalogSelectAllVisible()">Select all shown</button>
+      <button onclick="catalogClearSel()">Clear selection</button>
+    </div>
+    <div class="catChips" id="catalogChips"></div>
+    <div class="catlist" id="catalogList"></div>
+    <div class="catFoot">
+      <span class="muted" id="catalogCount"></span>
+      <div class="modal-actions" style="margin-top:0">
+        <button onclick="closeCatalog()">Cancel</button>
+        <button class="btn-primary" onclick="addSelectedCatalog()">Add Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SEED = [];
 const BAKED={url:"https://lmxzonnrisfzgkqfdxne.supabase.co",key:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxteHpvbm5yaXNmemdrcWZkeG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NTcxODYsImV4cCI6MjEwMDEzMzE4Nn0.y4MQaEbX3gr4MCaHCQ4reiRBI51UVRywh7TvWVMk5D0"};
 const CFG_KEY='acepharma_supabase_cfg';
 let sb=null, items=[], user=null;
@@ -354,6 +393,47 @@ let section='inventory';
 let groupBy='category';
 const IDEA='Purchase Idea';
 const EFFECTS=['Fat loss / Metabolic','Muscle / Anabolic','Recovery / Healing','Anti-inflammatory','Sleep','Nootropic / Focus','Mood / Anxiety','Hormonal','Cardiovascular','Longevity / Anti-aging','Immune','Gut health','Energy / Mitochondrial','Libido / Sexual','Skin / Cosmetic'];
+// Curated catalog of commonly-tracked items — used by the "Add from Catalog" picker for quick, pre-filled bulk adds.
+const CATALOG=[
+  {name:'Testosterone Cypionate',category:'AAS / Hormone',effect:'Hormonal',form:'Injectable Vial',unit:'Vials',dose:'200 mg/ml',uses:'TRT / hormone support'},
+  {name:'Testosterone Enanthate',category:'AAS / Hormone',effect:'Hormonal',form:'Injectable Vial',unit:'Vials',dose:'250 mg/ml',uses:'TRT / hormone support'},
+  {name:'HCG',category:'AAS / Hormone',effect:'Hormonal',form:'Kit',unit:'Kits',dose:'5000 IU',uses:'Endocrine support'},
+  {name:'Anastrozole',category:'Ancillary',effect:'Hormonal',form:'Tablet',unit:'Tabs',dose:'1 mg',uses:'Estrogen management'},
+  {name:'Tamoxifen',category:'Ancillary',effect:'Hormonal',form:'Tablet',unit:'Tabs',dose:'20 mg',uses:'Estrogen management'},
+  {name:'BPC-157',category:'Peptide',effect:'Recovery / Healing',form:'Injectable Vial',unit:'Vials',dose:'5 mg',uses:'Tissue / gut recovery'},
+  {name:'TB-500',category:'Peptide',effect:'Recovery / Healing',form:'Injectable Vial',unit:'Vials',dose:'5 mg',uses:'Tissue recovery'},
+  {name:'Ipamorelin',category:'Peptide',effect:'Longevity / Anti-aging',form:'Injectable Vial',unit:'Vials',dose:'5 mg',uses:'Growth hormone support'},
+  {name:'CJC-1295',category:'Peptide',effect:'Longevity / Anti-aging',form:'Injectable Vial',unit:'Vials',dose:'2 mg',uses:'Growth hormone support'},
+  {name:'Semaglutide',category:'Peptide',effect:'Fat loss / Metabolic',form:'Pen',unit:'Pens',dose:'2 mg',uses:'Metabolic / weight support'},
+  {name:'Tirzepatide',category:'Peptide',effect:'Fat loss / Metabolic',form:'Pen',unit:'Pens',dose:'5 mg',uses:'Metabolic / weight support'},
+  {name:'Melanotan II',category:'Peptide',effect:'Skin / Cosmetic',form:'Injectable Vial',unit:'Vials',dose:'10 mg',uses:'Tanning'},
+  {name:'PT-141',category:'Peptide',effect:'Libido / Sexual',form:'Injectable Vial',unit:'Vials',dose:'10 mg',uses:'Libido support'},
+  {name:'DSIP',category:'Peptide',effect:'Sleep',form:'Injectable Vial',unit:'Vials',dose:'2 mg',uses:'Sleep support'},
+  {name:'L-Carnitine',category:'Injectable Amino',effect:'Energy / Mitochondrial',form:'Injectable',unit:'Vials',dose:'250 mg/ml',uses:'Energy / fat metabolism'},
+  {name:'Glutathione',category:'Injectable Amino',effect:'Longevity / Anti-aging',form:'Injectable',unit:'Vials',dose:'600 mg',uses:'Antioxidant support'},
+  {name:'Vitamin B12',category:'Injectable Amino',effect:'Energy / Mitochondrial',form:'Injectable',unit:'Vials',dose:'1000 mcg/ml',uses:'Energy support'},
+  {name:'Metformin',category:'Pharma / Rx',effect:'Fat loss / Metabolic',form:'Tablet',unit:'Tabs',dose:'500 mg',uses:'Metabolic support'},
+  {name:'Finasteride',category:'Pharma / Rx',effect:'Hormonal',form:'Tablet',unit:'Tabs',dose:'1 mg',uses:'Hair / hormone support'},
+  {name:'Modafinil',category:'Pharma / Rx',effect:'Nootropic / Focus',form:'Tablet',unit:'Tabs',dose:'100 mg',uses:'Focus / wakefulness'},
+  {name:'Sermorelin',category:'Research Compound',effect:'Longevity / Anti-aging',form:'Injectable Vial',unit:'Vials',dose:'5 mg',uses:'Growth hormone research'},
+  {name:'Epithalon',category:'Research Compound',effect:'Longevity / Anti-aging',form:'Injectable Vial',unit:'Vials',dose:'10 mg',uses:'Longevity research'},
+  {name:'MOTS-c',category:'Research Compound',effect:'Energy / Mitochondrial',form:'Injectable Vial',unit:'Vials',dose:'10 mg',uses:'Mitochondrial research'},
+  {name:'Fish Oil',category:'Supplement',effect:'Cardiovascular',form:'Softgel',unit:'Caps',dose:'1000 mg',uses:'Heart / joint health'},
+  {name:'Vitamin D3',category:'Supplement',effect:'Immune',form:'Softgel',unit:'Caps',dose:'5000 IU',uses:'Immune / bone health'},
+  {name:'Magnesium Glycinate',category:'Supplement',effect:'Sleep',form:'Capsule',unit:'Caps',dose:'400 mg',uses:'Sleep / relaxation'},
+  {name:'Ashwagandha',category:'Supplement',effect:'Mood / Anxiety',form:'Capsule',unit:'Caps',dose:'600 mg',uses:'Stress / cortisol support'},
+  {name:'Creatine Monohydrate',category:'Supplement',effect:'Muscle / Anabolic',form:'Powder',unit:'Scoops',dose:'5 g',uses:'Strength / muscle'},
+  {name:'Whey Protein',category:'Supplement',effect:'Muscle / Anabolic',form:'Powder',unit:'Scoops',dose:'25 g',uses:'Muscle recovery'},
+  {name:'Melatonin',category:'Supplement',effect:'Sleep',form:'Tablet',unit:'Tabs',dose:'5 mg',uses:'Sleep support'},
+  {name:'CoQ10',category:'Supplement',effect:'Cardiovascular',form:'Softgel',unit:'Caps',dose:'200 mg',uses:'Heart / energy'},
+  {name:'NAC',category:'Supplement',effect:'Longevity / Anti-aging',form:'Capsule',unit:'Caps',dose:'600 mg',uses:'Antioxidant support'},
+  {name:'Probiotic Blend',category:'Supplement – Gut',effect:'Gut health',form:'Capsule',unit:'Caps',dose:'20 Billion CFU',uses:'Gut health'},
+  {name:'L-Glutamine',category:'Supplement – Gut',effect:'Gut health',form:'Powder',unit:'Scoops',dose:'5 g',uses:'Gut lining support'},
+  {name:'Digestive Enzymes',category:'Supplement – Gut',effect:'Gut health',form:'Capsule',unit:'Caps',dose:'1 cap',uses:'Digestion support'},
+  {name:'Bacteriostatic Water',category:'Raw Material',effect:'',form:'Injectable Vial',unit:'Vials',dose:'30 ml',uses:'Reconstitution'},
+  {name:'Insulin Syringes',category:'Raw Material',effect:'',form:'Kit',unit:'Box',dose:'1 ml',uses:'Injection supplies'},
+  {name:'Alcohol Prep Pads',category:'Raw Material',effect:'',form:'Kit',unit:'Box',dose:'',uses:'Injection supplies'}
+];
 
 const CATCOLORS={'AAS / Hormone':'#f85149','Peptide':'#a371f7','Injectable Amino':'#58a6ff',
   'Pharma / Rx':'#d29922','Ancillary':'#db6d28','Research Compound':'#ec6cb9',
@@ -675,14 +755,74 @@ async function del(id){const i=items.find(x=>x.id===id);
   if(error){setSync('error',true);alert(error.message);return;}
   await loadItems();
 }
-async function importStarter(){
-  if(!confirm('Load your 128 starter items into your account?'))return;
-  setSync('importing…');
-  const rows=SEED.map(s=>Object.assign({},s,{user_id:user.id}));
-  const {error}=await sb.from('items').insert(rows);
-  if(error){setSync('error',true);alert(error.message);return;}
-  await loadItems();
+// ---------- catalog picker ----------
+let catalogSel=new Set(), catalogQ='', catalogCat='';
+function existingNames(){return new Set(items.map(i=>(i.name||'').trim().toLowerCase()));}
+function openCatalog(){
+  catalogSel=new Set();catalogQ='';catalogCat='';
+  document.getElementById('catSearch').value='';
+  renderCatalogChips();renderCatalogList();
+  document.getElementById('catalogOverlay').classList.add('show');
 }
+function closeCatalog(){document.getElementById('catalogOverlay').classList.remove('show')}
+function renderCatalogChips(){
+  const cats=[...new Set(CATALOG.map(c=>c.category))].sort();
+  document.getElementById('catalogChips').innerHTML=
+    '<div class="chip '+(catalogCat===''?'active':'')+'" onclick="setCatalogCat(\'\')">All</div>'+
+    cats.map(c=>'<div class="chip '+(catalogCat===c?'active':'')+'" onclick="setCatalogCat(\''+c.replace(/'/g,"\\'")+'\')"><span style="color:'+catColor(c)+'">●</span> '+esc(c)+'</div>').join('');
+}
+function setCatalogCat(c){catalogCat=c;renderCatalogChips();renderCatalogList();}
+function catalogVisible(){
+  const have=existingNames();
+  return CATALOG.filter(c=>{
+    if(catalogCat&&c.category!==catalogCat)return false;
+    if(catalogQ){const hay=(c.name+' '+c.category+' '+(c.uses||'')+' '+(c.effect||'')).toLowerCase();if(!hay.includes(catalogQ))return false;}
+    return true;
+  }).map(c=>Object.assign({_added:have.has(c.name.trim().toLowerCase())},c));
+}
+function renderCatalogList(){
+  const vis=catalogVisible();
+  const list=document.getElementById('catalogList');
+  if(!vis.length){list.innerHTML='<div class="catEmpty">No catalog items match.</div>';}
+  else{
+    list.innerHTML=vis.map(c=>{
+      const checked=catalogSel.has(c.name)?'checked':'';
+      const added=c._added;
+      return '<label class="catrow'+(added?' added':'')+'">'+
+        '<input type="checkbox" '+checked+' '+(added?'disabled':'')+' onchange="catalogToggle(\''+c.name.replace(/'/g,"\\'")+'\')">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div class="ci-name">'+esc(c.name)+'</div>'+
+          '<div class="ci-meta">'+esc(c.category)+(c.form?' · '+esc(c.form):'')+(c.dose?' · '+esc(c.dose):'')+(c.uses?' · '+esc(c.uses):'')+'</div>'+
+        '</div>'+
+        '<div class="ci-tag">'+(added?'Already in inventory':'')+'</div>'+
+      '</label>';
+    }).join('');
+  }
+  document.getElementById('catalogCount').textContent=catalogSel.size+' selected';
+}
+function catalogToggle(name){
+  if(catalogSel.has(name))catalogSel.delete(name);else catalogSel.add(name);
+  renderCatalogList();
+}
+function catalogSelectAllVisible(){
+  catalogVisible().forEach(c=>{if(!c._added)catalogSel.add(c.name);});
+  renderCatalogList();
+}
+function catalogClearSel(){catalogSel=new Set();renderCatalogList();}
+async function addSelectedCatalog(){
+  if(!catalogSel.size){alert('Select at least one item first.');return;}
+  const rows=CATALOG.filter(c=>catalogSel.has(c.name)).map(c=>({
+    name:c.name,category:c.category,effect:c.effect||'',form:c.form||'',unit:c.unit||'',
+    dose:c.dose||'',qty:'',price:null,status:'In Stock',reorder:'',uses:c.uses||'',notes:'',
+    expiry:null,source:'',user_id:user.id}));
+  setSync('adding…');
+  const {error}=await sb.from('items').insert(rows);
+  if(error){setSync('error: '+error.message,true);alert(error.message);return;}
+  closeCatalog();await loadItems();
+}
+document.getElementById('catSearch').oninput=e=>{catalogQ=e.target.value.toLowerCase().trim();renderCatalogList();};
+document.getElementById('catalogOverlay').addEventListener('click',e=>{if(e.target.id==='catalogOverlay')closeCatalog()});
+
 function exportCSV(){
   const cols=['name','category','form','qty','unit','dose','price','status','reorder','uses','notes'];
   const rows=[cols.join(',')].concat(items.map(i=>cols.map(c=>{
