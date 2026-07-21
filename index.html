@@ -229,6 +229,10 @@
   <select id="statusFilter">
     <option value="">All statuses</option><option>In Stock</option><option>On the Way</option><option>Out</option>
   </select>
+  <select id="groupBy" title="Group items by">
+    <option value="category">Group: Category</option>
+    <option value="effect">Group: Effect</option>
+  </select>
   <button class="btn-primary" id="addBtn" onclick="openModal()">+ Add Item</button>
   <button onclick="toggleAllGroups()" title="Expand or collapse all categories">⇕ All</button>
   <button onclick="exportCSV()">Export CSV</button>
@@ -260,6 +264,9 @@
       <div class="field"><label>Category</label>
         <input id="f_category" list="catSuggest" autocomplete="off" placeholder="Pick or type a category…">
         <datalist id="catSuggest"></datalist></div>
+      <div class="field"><label>Effect / Function</label>
+        <input id="f_effect" list="effectSuggest" autocomplete="off" placeholder="Pick or type what it does…">
+        <datalist id="effectSuggest"></datalist></div>
       <div class="field"><label>Form</label>
         <select id="f_form">
           <option>Injectable Vial</option><option>Injectable</option><option>Capsule</option>
@@ -344,7 +351,9 @@ let collapsed=new Set(JSON.parse(localStorage.getItem('ps_collapsed')||'[]'));
 const ACCENTS=[['Green','#3fb950'],['Blue','#58a6ff'],['Purple','#a371f7'],['Orange','#db6d28'],['Pink','#ec6cb9'],['Teal','#2dd4bf'],['Red','#f85149']];
 let viewMode=localStorage.getItem('ps_view')||'table';
 let section='inventory';
+let groupBy='category';
 const IDEA='Purchase Idea';
+const EFFECTS=['Fat loss / Metabolic','Muscle / Anabolic','Recovery / Healing','Anti-inflammatory','Sleep','Nootropic / Focus','Mood / Anxiety','Hormonal','Cardiovascular','Longevity / Anti-aging','Immune','Gut health','Energy / Mitochondrial','Libido / Sexual','Skin / Cosmetic'];
 
 const CATCOLORS={'AAS / Hormone':'#f85149','Peptide':'#a371f7','Injectable Amino':'#58a6ff',
   'Pharma / Rx':'#d29922','Ancillary':'#db6d28','Research Compound':'#ec6cb9',
@@ -452,7 +461,7 @@ function render(){
       if(section==='reorder' && !(isLow(i)||(i.status||'In Stock')==='Out'))return false; }
     if(activeCat&&i.category!==activeCat)return false;
     if(activeStatus&&(i.status||'In Stock')!==activeStatus)return false;
-    if(q){const hay=(i.name+' '+i.category+' '+(i.uses||'')+' '+(i.dose||'')+' '+(i.notes||'')+' '+(i.form||'')+' '+(i.source||'')).toLowerCase();
+    if(q){const hay=(i.name+' '+i.category+' '+(i.uses||'')+' '+(i.dose||'')+' '+(i.notes||'')+' '+(i.form||'')+' '+(i.source||'')+' '+(i.effect||'')).toLowerCase();
       if(!hay.includes(q))return false;}
     return true;});
   const cmp=(a,b)=>{let x=a[sortKey],y=b[sortKey];
@@ -464,7 +473,7 @@ function render(){
     const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':st===IDEA?'b-idea':'b-out';
     const lo=isLow(i);
     return '<tr class="'+(lo?'low':'')+'">'+
-      '<td class="name">'+esc(i.name)+(lo?'<span class="lowtag">LOW</span>':'')+expTag(i)+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+(i.source?'<div class="dose">🛒 '+esc(i.source)+'</div>':'')+'</td>'+
+      '<td class="name">'+esc(i.name)+(lo?'<span class="lowtag">LOW</span>':'')+expTag(i)+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+(i.effect?'<div class="dose">⚙ '+esc(i.effect)+'</div>':'')+(i.source?'<div class="dose">🛒 '+esc(i.source)+'</div>':'')+'</td>'+
       '<td>'+esc(i.form||'')+'</td>'+
       '<td class="qty">'+esc(String(i.qty??''))+'</td>'+
       '<td class="dose">'+esc(i.dose||'')+'</td>'+
@@ -473,9 +482,10 @@ function render(){
       '<td><span class="badge '+stc+'">'+esc(st)+'</span>'+(st==='On the Way'?'<label class="arrived" title="Tick when it arrives — moves to In Stock"><input type="checkbox" onchange="receive(\''+i.id+'\',this)"> arrived</label>':'')+'</td>'+
       '<td class="rowbtns"><button title="Duplicate" onclick="duplicateItem(\''+i.id+'\')">⧉</button><button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
     '</tr>';};
-  // group by category
+  // group by category or effect
+  const gkey=i=>groupBy==='effect'?(i.effect||'— No effect set —'):(i.category||'Uncategorized');
   const groups={};
-  list.forEach(i=>{(groups[i.category]=groups[i.category]||[]).push(i);});
+  list.forEach(i=>{const k=gkey(i);(groups[k]=groups[k]||[]).push(i);});
   const gcats=Object.keys(groups).sort();
   if(viewMode==='cards'){
     let ch='';
@@ -562,6 +572,7 @@ function cardHTML(i){
       ((i.qty!=null&&i.qty!=='')?'<b style="color:var(--txt)">'+esc(String(i.qty))+'</b> '+esc(i.unit||''):'')+
       (i.form?(((i.qty!=null&&i.qty!=='')?' · ':'')+esc(i.form)):'')+
       (i.dose?'<br>'+esc(i.dose):'')+
+      (i.effect?'<br>⚙ '+esc(i.effect):'')+
       (i.uses?'<br>'+esc(i.uses):'')+
       (i.source?'<br>🛒 '+esc(i.source):'')+
       '<br><span class="badge '+stc+'">'+esc(st)+'</span>'+
@@ -582,9 +593,9 @@ function toggleNav(){document.getElementById('app').classList.toggle('navopen');
 function closeNav(){document.getElementById('app').classList.remove('navopen');}
 function duplicateItem(id){const i=items.find(x=>x.id===id);if(!i)return;
   document.getElementById('modalTitle').textContent='Add Item';
-  buildSuggest();buildCatSuggest();
+  buildSuggest();buildCatSuggest();buildEffectSuggest();
   document.getElementById('f_id').value='';
-  ['category','form','unit','dose','status','reorder','uses','notes','expiry','source'].forEach(f=>document.getElementById('f_'+f).value=i[f]||'');
+  ['category','form','unit','dose','status','reorder','uses','notes','expiry','source','effect'].forEach(f=>document.getElementById('f_'+f).value=i[f]||'');
   document.getElementById('f_name').value=(i.name||'')+' (copy)';
   document.getElementById('f_qty').value=i.qty??'';
   document.getElementById('f_price').value=i.price??'';
@@ -626,16 +637,21 @@ function buildCatSuggest(){
   items.forEach(i=>{if(i.category)set.add(i.category);});
   document.getElementById('catSuggest').innerHTML=[...set].sort().map(c=>'<option value="'+esc(c)+'">').join('');
 }
+function buildEffectSuggest(){
+  const set=new Set(EFFECTS);
+  items.forEach(i=>{if(i.effect)set.add(i.effect);});
+  document.getElementById('effectSuggest').innerHTML=[...set].sort().map(c=>'<option value="'+esc(c)+'">').join('');
+}
 function openModal(){const idea=section==='ideas';
   document.getElementById('modalTitle').textContent=idea?'Add Purchase Idea':'Add Item';
-  ['id','name','qty','unit','dose','price','reorder','uses','notes','category','expiry','source'].forEach(f=>document.getElementById('f_'+f).value='');
-  document.getElementById('f_status').value=idea?IDEA:'In Stock';buildSuggest();buildCatSuggest();document.getElementById('overlay').classList.add('show');}
+  ['id','name','qty','unit','dose','price','reorder','uses','notes','category','expiry','source','effect'].forEach(f=>document.getElementById('f_'+f).value='');
+  document.getElementById('f_status').value=idea?IDEA:'In Stock';buildSuggest();buildCatSuggest();buildEffectSuggest();document.getElementById('overlay').classList.add('show');}
 function closeModal(){document.getElementById('overlay').classList.remove('show')}
 function edit(id){const i=items.find(x=>x.id===id);if(!i)return;
   document.getElementById('modalTitle').textContent='Edit Item';
-  buildCatSuggest();
+  buildCatSuggest();buildEffectSuggest();
   document.getElementById('f_id').value=i.id;
-  ['name','category','form','qty','unit','dose','status','reorder','uses','notes','expiry','source'].forEach(f=>document.getElementById('f_'+f).value=i[f]||'');
+  ['name','category','form','qty','unit','dose','status','reorder','uses','notes','expiry','source','effect'].forEach(f=>document.getElementById('f_'+f).value=i[f]||'');
   document.getElementById('f_price').value=i.price??'';
   document.getElementById('overlay').classList.add('show');}
 async function saveItem(){
@@ -644,7 +660,7 @@ async function saveItem(){
   const id=g('id');
   const obj={name,category:g('category')||'Uncategorized',form:g('form'),qty:g('qty'),unit:g('unit'),
     dose:g('dose'),price:g('price')?Number(g('price')):null,status:g('status'),
-    reorder:g('reorder'),uses:g('uses'),notes:g('notes'),expiry:g('expiry')||null,source:g('source')};
+    reorder:g('reorder'),uses:g('uses'),notes:g('notes'),expiry:g('expiry')||null,source:g('source'),effect:g('effect')};
   setSync('saving…');
   let error;
   if(id){({error}=await sb.from('items').update(obj).eq('id',id));}
@@ -710,6 +726,7 @@ document.getElementById('dashOverlay').addEventListener('click',e=>{if(e.target.
 document.getElementById('f_name').addEventListener('input',autofillFromName);
 document.getElementById('search').oninput=e=>{q=e.target.value.toLowerCase().trim();render()};
 document.getElementById('statusFilter').onchange=e=>{activeStatus=e.target.value;render()};
+document.getElementById('groupBy').onchange=e=>{groupBy=e.target.value;render()};
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 boot();
