@@ -189,6 +189,19 @@
   .jname{font-weight:600}
   .jmeta{font-size:12px;color:var(--muted);margin-top:2px}
   .jamt{color:var(--accent);font-weight:600;white-space:nowrap}
+  /* cycles */
+  .cyc-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+  .cyc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .cyc-title{font-size:19px;font-weight:700}
+  .cyc-meta{color:var(--muted);font-size:12px;margin-top:4px}
+  .cyc-group{font-weight:600;margin:16px 0 6px;font-size:13px}
+  .cyc-table{width:100%;border-collapse:collapse;font-size:13px}
+  .cyc-table th,.cyc-table td{border:1px solid var(--line);padding:7px 11px;text-align:left}
+  .cyc-table th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .cyc-erow{display:grid;grid-template-columns:1fr 1fr .9fr .9fr auto;gap:6px;margin-bottom:6px}
+  .cyc-erow input{width:100%;background:var(--panel2)}
+  .cyc-erow .rm{padding:6px 10px;color:var(--danger);border-color:transparent;background:transparent}
+  @media(max-width:640px){.cyc-erow{grid-template-columns:1fr 1fr auto}}
   /* print / PDF */
   #printArea{display:none}
   @media print{
@@ -254,7 +267,7 @@
     <button class="navitem" id="nav-reorder" onclick="setSection('reorder')">🛒 Restock</button>
     <button class="navitem" id="nav-ideas" onclick="setSection('ideas')">💡 Purchase Ideas</button>
     <button class="navitem" id="nav-overview" onclick="setSection('overview')">📊 Overview</button>
-    <button class="navitem" id="nav-journal" onclick="setSection('journal')">📓 Journal</button>
+    <button class="navitem" id="nav-cycles" onclick="setSection('cycles')">🔄 Cycles</button>
   </div>
   <div class="side-label">Filter by effect</div>
   <div id="sideEffects"></div>
@@ -304,7 +317,7 @@
 
 <div class="wrap">
   <div id="overview" class="hidden"></div>
-  <div id="journal" class="hidden"></div>
+  <div id="cycles" class="hidden"></div>
   <table id="tableview"><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
   <div class="cards hidden" id="cardview"></div>
   <div class="empty" id="empty" style="display:none">Nothing here yet.</div>
@@ -409,6 +422,28 @@
   </div>
 </div>
 
+<!-- cycle editor modal -->
+<div class="overlay" id="cycleOverlay">
+  <div class="modal" style="max-width:760px">
+    <h2 id="cycleModalTitle">New Cycle</h2>
+    <input type="hidden" id="cy_id">
+    <div class="grid">
+      <div class="field full"><label>Cycle name</label><input id="cy_name" placeholder="e.g. Summer Cut 2026"></div>
+      <div class="field"><label>Start date</label><input id="cy_start" type="date" onchange="cyLen()"></div>
+      <div class="field"><label>End date</label><input id="cy_end" type="date" onchange="cyLen()"></div>
+      <div class="field"><label>Total cost</label><input id="cy_cost" placeholder="$"></div>
+      <div class="field"><label>Length</label><div id="cy_len" style="padding:8px 0;color:var(--muted)">—</div></div>
+      <div class="field full"><label>Notes</label><textarea id="cy_notes"></textarea></div>
+    </div>
+    <div style="margin-top:6px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Compounds</label></div>
+    <div id="cy_rows"></div>
+    <button onclick="addCycleRow()" style="margin-top:6px">＋ Add compound</button>
+    <datalist id="cyCompoundSuggest"></datalist>
+    <datalist id="cyGroupSuggest"></datalist>
+    <div class="modal-actions"><button onclick="closeCycle()">Cancel</button><button class="btn-primary" onclick="saveCycle()">Save Cycle</button></div>
+  </div>
+</div>
+
 <!-- print area (PDF) -->
 <div id="printArea"></div>
 
@@ -436,6 +471,8 @@ let groupBy='category';
 let activeEffect='';
 let activeTag='';
 let journal=[];
+let cycles=[];
+let editRows=[];
 const IDEA='Purchase Idea';
 const EFFECTS=['Fat loss / Metabolic','Muscle / Anabolic','Recovery / Healing','Anti-inflammatory','Sleep','Nootropic / Focus','Mood / Anxiety','Hormonal','Cardiovascular','Longevity / Anti-aging','Immune','Gut health','Energy / Mitochondrial','Libido / Sexual','Skin / Cosmetic'];
 
@@ -563,17 +600,17 @@ function render(){
     '<div class="stat"><b>'+ideaItems.length+'</b><small>Ideas</small></div>'+
     '<div class="stat"><b>$'+totalVal.toFixed(0)+'</b><small>Total Cost</small></div>';
   // special full-page sections
-  const overview=section==='overview', journ=section==='journal', special=overview||journ;
+  const overview=section==='overview', cyc=section==='cycles', special=overview||cyc;
   document.getElementById('overview').classList.toggle('hidden',!overview);
-  document.getElementById('journal').classList.toggle('hidden',!journ);
+  document.getElementById('cycles').classList.toggle('hidden',!cyc);
   document.getElementById('toolbar').classList.toggle('hidden',special);
   document.getElementById('catChips').classList.toggle('hidden',special);
   document.getElementById('tableview').classList.toggle('hidden',special||viewMode==='cards');
   document.getElementById('cardview').classList.toggle('hidden',special||viewMode!=='cards');
   if(overview){renderOverview(inv,ideaItems);document.getElementById('empty').style.display='none';
     document.getElementById('count').textContent='';document.getElementById('value').innerHTML='';return;}
-  if(journ){renderJournal();document.getElementById('empty').style.display='none';
-    document.getElementById('count').textContent=journal.length+' entr'+(journal.length===1?'y':'ies');document.getElementById('value').innerHTML='';return;}
+  if(cyc){renderCycles();document.getElementById('empty').style.display='none';
+    document.getElementById('count').textContent=cycles.length+' cycle'+(cycles.length===1?'':'s');document.getElementById('value').innerHTML='';return;}
   // list sections
   let list=items.filter(i=>{
     if(section==='ideas'){ if(!isIdea(i))return false; }
@@ -602,7 +639,7 @@ function render(){
       '<td class="uses">'+esc(i.uses||'')+'</td>'+
       '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'')+'</td>'+
       '<td><span class="badge '+stc+'">'+esc(st)+'</span>'+(st==='On the Way'?'<label class="arrived" title="Tick when it arrives — moves to In Stock"><input type="checkbox" onchange="receive(\''+i.id+'\',this)"> arrived</label>':'')+'</td>'+
-      '<td class="rowbtns">'+(st===IDEA?'<button title="I bought it — move to inventory" onclick="moveToInventory(\''+i.id+'\')">➕</button>':'<button title="Log usage" onclick="logUse(\''+i.id+'\')">⏱</button>')+'<button title="Duplicate" onclick="duplicateItem(\''+i.id+'\')">⧉</button><button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
+      '<td class="rowbtns">'+(st===IDEA?'<button title="I bought it — move to inventory" onclick="moveToInventory(\''+i.id+'\')">➕</button>':'')+'<button title="Duplicate" onclick="duplicateItem(\''+i.id+'\')">⧉</button><button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
     '</tr>';};
   // group by category or effect
   const gkey=i=>groupBy==='effect'?(i.effect||'— No effect set —'):(i.category||'Uncategorized');
@@ -680,7 +717,7 @@ function cardHTML(i){
   const lo=isLow(i);
   return '<div class="icard'+(lo?' low':'')+'" style="border-left-color:'+catColor(i.category)+'">'+
     '<div class="cbtns">'+(st==='On the Way'?'<button title="Mark arrived" onclick="receive(\''+i.id+'\')">📥</button>':'')+
-      (st===IDEA?'<button title="I bought it — move to inventory" onclick="moveToInventory(\''+i.id+'\')">➕</button>':'<button title="Log usage" onclick="logUse(\''+i.id+'\')">⏱</button>')+
+      (st===IDEA?'<button title="I bought it — move to inventory" onclick="moveToInventory(\''+i.id+'\')">➕</button>':'')+
       '<button title="Duplicate" onclick="duplicateItem(\''+i.id+'\')">⧉</button>'+
       '<button title="Edit" onclick="edit(\''+i.id+'\')">✎</button>'+
       '<button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></div>'+
@@ -700,13 +737,13 @@ function setView(v){viewMode=v;localStorage.setItem('ps_view',v);updateViewSeg()
 function updateViewSeg(){const t=document.getElementById('segTable'),c=document.getElementById('segCards');
   if(t)t.classList.toggle('active',viewMode==='table');if(c)c.classList.toggle('active',viewMode==='cards');}
 function setSection(s){section=s;
-  ['inventory','reorder','ideas','overview','journal'].forEach(x=>{const el=document.getElementById('nav-'+x);if(el)el.classList.toggle('active',x===s);});
-  const T={inventory:'Inventory',reorder:'Restock',ideas:'Purchase Ideas',overview:'Overview',journal:'Usage Journal'};
-  const S={inventory:'Everything you have on hand',reorder:'Items that are low or out of stock',ideas:'Things you want to buy',overview:'Your stats & summaries',journal:'When you used things'};
+  ['inventory','reorder','ideas','overview','cycles'].forEach(x=>{const el=document.getElementById('nav-'+x);if(el)el.classList.toggle('active',x===s);});
+  const T={inventory:'Inventory',reorder:'Restock',ideas:'Purchase Ideas',overview:'Overview',cycles:'Cycles'};
+  const S={inventory:'Everything you have on hand',reorder:'Items that are low or out of stock',ideas:'Things you want to buy',overview:'Your stats & summaries',cycles:'Plan and save your cycles'};
   document.getElementById('sectionTitle').textContent=T[s];
   document.getElementById('sectionSub').textContent=S[s];
   document.getElementById('addBtn').textContent=s==='ideas'?'+ Add Idea':'+ Add Item';
-  if(s==='journal')loadJournal();
+  if(s==='cycles')loadCycles();
   closeNav();render();}
 function toggleNav(){document.getElementById('app').classList.toggle('navopen');}
 function closeNav(){document.getElementById('app').classList.remove('navopen');}
@@ -761,6 +798,92 @@ function exportPDF(){
     h+='</table>';});
   document.getElementById('printArea').innerHTML=h;
   window.print();}
+// ---------- cycles ----------
+async function loadCycles(){
+  setSync('loading cycles…');
+  const {data,error}=await sb.from('cycles').select('*').order('created_at',{ascending:false});
+  if(error){setSync('error: '+error.message,true);return;}
+  cycles=data||[];setSync('synced');render();}
+function cycleWeeks(c){
+  if(!c.start_date||!c.end_date)return 0;
+  const w=Math.round((new Date(c.end_date)-new Date(c.start_date))/(7*86400000));
+  return w>0?w:0;}
+function renderCycles(){
+  const el=document.getElementById('cycles');
+  let h='<button class="btn-primary" onclick="openCycle()" style="margin-bottom:14px">＋ New Cycle</button>';
+  if(!cycles.length){h+='<div class="empty" style="display:block">No cycles yet. Click ＋ New Cycle to plan one.</div>';el.innerHTML=h;return;}
+  cycles.forEach(c=>{
+    const rows=Array.isArray(c.rows)?c.rows:[];
+    const groups={};rows.forEach(r=>{const g=(r.group||'General');(groups[g]=groups[g]||[]).push(r);});
+    const meta=[];
+    if(c.start_date||c.end_date)meta.push(esc((c.start_date||'?')+' → '+(c.end_date||'?')));
+    const wk=cycleWeeks(c);if(wk)meta.push(wk+' weeks');
+    if(c.cost)meta.push('Cost: '+esc(String(c.cost)));
+    meta.push(rows.length+' compound'+(rows.length!==1?'s':''));
+    h+='<div class="cyc-card"><div class="cyc-head"><div><div class="cyc-title">'+esc(c.title||'Untitled cycle')+'</div>'+
+      '<div class="cyc-meta">'+meta.join(' · ')+'</div></div>'+
+      '<div class="rowbtns"><button onclick="openCycle(\''+c.id+'\')" title="Edit">✎</button><button onclick="deleteCycle(\''+c.id+'\')" title="Delete">🗑</button></div></div>';
+    Object.keys(groups).forEach(g=>{
+      h+='<div class="cyc-group">'+esc(g)+'</div><table class="cyc-table"><tr><th>Compound</th><th>Dosing</th><th>Frequency</th></tr>';
+      groups[g].forEach(r=>{h+='<tr><td>'+esc(r.compound||'')+'</td><td>'+esc(r.dosing||'')+'</td><td>'+esc(r.frequency||'')+'</td></tr>';});
+      h+='</table>';});
+    if(c.notes)h+='<div class="cyc-meta" style="margin-top:12px">📝 '+esc(c.notes)+'</div>';
+    h+='</div>';});
+  el.innerHTML=h;}
+function buildCyDatalists(){
+  const comp=new Set();items.forEach(i=>{if(i.name)comp.add(i.name);});
+  document.getElementById('cyCompoundSuggest').innerHTML=[...comp].sort().map(n=>'<option value="'+esc(n)+'">').join('');
+  const grp=new Set();cycles.forEach(c=>{(Array.isArray(c.rows)?c.rows:[]).forEach(r=>{if(r.group)grp.add(r.group);});});
+  document.getElementById('cyGroupSuggest').innerHTML=[...grp].sort().map(n=>'<option value="'+esc(n)+'">').join('');}
+function openCycle(id){
+  buildCyDatalists();
+  const c=id?cycles.find(x=>x.id===id):null;
+  document.getElementById('cycleModalTitle').textContent=c?'Edit Cycle':'New Cycle';
+  document.getElementById('cy_id').value=c?c.id:'';
+  document.getElementById('cy_name').value=c?(c.title||''):'';
+  document.getElementById('cy_start').value=c?(c.start_date||''):'';
+  document.getElementById('cy_end').value=c?(c.end_date||''):'';
+  document.getElementById('cy_cost').value=c?(c.cost||''):'';
+  document.getElementById('cy_notes').value=c?(c.notes||''):'';
+  editRows=c&&Array.isArray(c.rows)?c.rows.map(r=>({group:r.group||'',compound:r.compound||'',dosing:r.dosing||'',frequency:r.frequency||''})):[{group:'',compound:'',dosing:'',frequency:''}];
+  renderEditRows();cyLen();
+  document.getElementById('cycleOverlay').classList.add('show');}
+function closeCycle(){document.getElementById('cycleOverlay').classList.remove('show');}
+function renderEditRows(){
+  document.getElementById('cy_rows').innerHTML=editRows.map((r,i)=>
+    '<div class="cyc-erow">'+
+      '<input placeholder="Topic" list="cyGroupSuggest" value="'+esc(r.group)+'" oninput="cyEdit('+i+',\'group\',this.value)">'+
+      '<input placeholder="Compound" list="cyCompoundSuggest" value="'+esc(r.compound)+'" oninput="cyEdit('+i+',\'compound\',this.value)">'+
+      '<input placeholder="Dosing" value="'+esc(r.dosing)+'" oninput="cyEdit('+i+',\'dosing\',this.value)">'+
+      '<input placeholder="Frequency" value="'+esc(r.frequency)+'" oninput="cyEdit('+i+',\'frequency\',this.value)">'+
+      '<button class="rm" title="Remove" onclick="removeCycleRow('+i+')">✕</button>'+
+    '</div>').join('');}
+function cyEdit(i,k,v){if(editRows[i])editRows[i][k]=v;}
+function addCycleRow(){editRows.push({group:'',compound:'',dosing:'',frequency:''});renderEditRows();}
+function removeCycleRow(i){editRows.splice(i,1);renderEditRows();}
+function cyLen(){
+  const s=document.getElementById('cy_start').value,e=document.getElementById('cy_end').value;
+  const el=document.getElementById('cy_len');
+  if(s&&e){const w=Math.round((new Date(e)-new Date(s))/(7*86400000));el.textContent=(w>0?w:0)+' weeks';}
+  else el.textContent='—';}
+async function saveCycle(){
+  const title=document.getElementById('cy_name').value.trim();
+  if(!title){alert('Give the cycle a name');return;}
+  const rows=editRows.filter(r=>r.compound||r.group||r.dosing||r.frequency);
+  const obj={title,start_date:document.getElementById('cy_start').value||null,end_date:document.getElementById('cy_end').value||null,
+    cost:document.getElementById('cy_cost').value.trim(),notes:document.getElementById('cy_notes').value.trim(),rows};
+  const id=document.getElementById('cy_id').value;
+  setSync('saving…');
+  let error;
+  if(id){({error}=await sb.from('cycles').update(obj).eq('id',id));}
+  else{obj.user_id=user.id;({error}=await sb.from('cycles').insert(obj));}
+  if(error){setSync('error',true);alert(error.message);return;}
+  closeCycle();await loadCycles();}
+async function deleteCycle(id){const c=cycles.find(x=>x.id===id);
+  if(!confirm('Delete cycle "'+((c&&c.title)||'')+'"?'))return;
+  const {error}=await sb.from('cycles').delete().eq('id',id);
+  if(error){alert(error.message);return;}
+  await loadCycles();}
 function prioTag(i){if((i.status||'')!==IDEA||!i.priority)return '';
   const cls={High:'prio-high',Medium:'prio-med',Low:'prio-low'}[i.priority]||'';
   return '<span class="priotag '+cls+'">'+esc(i.priority)+'</span>';}
@@ -935,6 +1058,7 @@ async function deleteAllItems(){
 document.getElementById('settingsOverlay').addEventListener('click',e=>{if(e.target.id==='settingsOverlay')closeSettings()});
 document.getElementById('dashOverlay').addEventListener('click',e=>{if(e.target.id==='dashOverlay')closeDash()});
 document.getElementById('logOverlay').addEventListener('click',e=>{if(e.target.id==='logOverlay')closeLog()});
+document.getElementById('cycleOverlay').addEventListener('click',e=>{if(e.target.id==='cycleOverlay')closeCycle()});
 
 document.getElementById('f_name').addEventListener('input',autofillFromName);
 document.getElementById('search').oninput=e=>{q=e.target.value.toLowerCase().trim();render()};
