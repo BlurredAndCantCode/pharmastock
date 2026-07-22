@@ -205,6 +205,13 @@
   .cyc-erow input{width:100%;background:var(--panel2)}
   .cyc-erow .rm{padding:6px 10px;color:var(--danger);border-color:transparent;background:transparent}
   @media(max-width:640px){.cyc-erow{grid-template-columns:1fr 1fr auto}}
+  .cyc-sec{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--panel2)}
+  .cyc-sec-head{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .cyc-sec-head input{flex:1;font-weight:600;background:var(--panel)}
+  .cyc-erow2{display:grid;grid-template-columns:1fr .8fr .8fr auto;gap:6px;margin-bottom:6px}
+  .cyc-erow2 input{width:100%;background:var(--panel)}
+  .cyc-sec .rm{color:var(--danger);border-color:transparent;background:transparent;padding:6px 9px;white-space:nowrap}
+  @media(max-width:640px){.cyc-erow2{grid-template-columns:1fr 1fr auto}}
   /* print / PDF */
   #printArea{display:none}
   @media print{
@@ -438,9 +445,9 @@
       <div class="field"><label>Length</label><div id="cy_len" style="padding:8px 0;color:var(--muted)">—</div></div>
       <div class="field full"><label>Notes</label><textarea id="cy_notes"></textarea></div>
     </div>
-    <div style="margin-top:6px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Compounds</label></div>
-    <div id="cy_rows"></div>
-    <button onclick="addCycleRow()" style="margin-top:6px">＋ Add compound</button>
+    <div style="margin-top:6px"><label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Compounds by topic</label></div>
+    <div id="cy_sections"></div>
+    <button onclick="addSection()" style="margin-top:6px">＋ Add topic section</button>
     <datalist id="cyCompoundSuggest"></datalist>
     <datalist id="cyGroupSuggest"></datalist>
     <div class="modal-actions"><button onclick="closeCycle()">Cancel</button><button class="btn-primary" onclick="saveCycle()">Save Cycle</button></div>
@@ -475,7 +482,7 @@ let activeEffect='';
 let activeTag='';
 let journal=[];
 let cycles=[];
-let editRows=[];
+let editSections=[];
 const IDEA='Purchase Idea';
 const EFFECTS=['Fat loss / Metabolic','Muscle / Anabolic','Recovery / Healing','Anti-inflammatory','Sleep','Nootropic / Focus','Mood / Anxiety','Hormonal','Cardiovascular','Longevity / Anti-aging','Immune','Gut health','Energy / Mitochondrial','Libido / Sexual','Skin / Cosmetic'];
 
@@ -850,22 +857,31 @@ function openCycle(id){
   document.getElementById('cy_end').value=c?(c.end_date||''):'';
   document.getElementById('cy_cost').value=c?(c.cost||''):'';
   document.getElementById('cy_notes').value=c?(c.notes||''):'';
-  editRows=c&&Array.isArray(c.rows)?c.rows.map(r=>({group:r.group||'',compound:r.compound||'',dosing:r.dosing||'',frequency:r.frequency||''})):[{group:'',compound:'',dosing:'',frequency:''}];
-  renderEditRows();cyLen();
+  editSections=[];
+  const _rows=c&&Array.isArray(c.rows)?c.rows:[];
+  if(_rows.length){const order=[],map={};_rows.forEach(r=>{const g=r.group||'';if(!(g in map)){map[g]={group:g,rows:[]};order.push(g);}map[g].rows.push({compound:r.compound||'',dosing:r.dosing||'',frequency:r.frequency||''});});editSections=order.map(g=>map[g]);}
+  if(!editSections.length)editSections=[{group:'',rows:[{compound:'',dosing:'',frequency:''}]}];
+  renderCycleEditor();cyLen();
   document.getElementById('cycleOverlay').classList.add('show');}
 function closeCycle(){document.getElementById('cycleOverlay').classList.remove('show');}
-function renderEditRows(){
-  document.getElementById('cy_rows').innerHTML=editRows.map((r,i)=>
-    '<div class="cyc-erow">'+
-      '<input placeholder="Topic" list="cyGroupSuggest" value="'+esc(r.group)+'" oninput="cyEdit('+i+',\'group\',this.value)">'+
-      '<input placeholder="Compound" list="cyCompoundSuggest" value="'+esc(r.compound)+'" oninput="cyEdit('+i+',\'compound\',this.value)">'+
-      '<input placeholder="Dosing" value="'+esc(r.dosing)+'" oninput="cyEdit('+i+',\'dosing\',this.value)">'+
-      '<input placeholder="Frequency" value="'+esc(r.frequency)+'" oninput="cyEdit('+i+',\'frequency\',this.value)">'+
-      '<button class="rm" title="Remove" onclick="removeCycleRow('+i+')">✕</button>'+
-    '</div>').join('');}
-function cyEdit(i,k,v){if(editRows[i])editRows[i][k]=v;}
-function addCycleRow(){editRows.push({group:'',compound:'',dosing:'',frequency:''});renderEditRows();}
-function removeCycleRow(i){editRows.splice(i,1);renderEditRows();}
+function renderCycleEditor(){
+  document.getElementById('cy_sections').innerHTML=editSections.map((s,si)=>{
+    let h='<div class="cyc-sec"><div class="cyc-sec-head">'+
+      '<input placeholder="Topic (e.g. Androgens)" list="cyGroupSuggest" value="'+esc(s.group)+'" oninput="editSectionGroup('+si+',this.value)">'+
+      '<button class="rm" title="Remove this topic" onclick="removeSection('+si+')">✕ topic</button></div>';
+    h+=s.rows.map((r,ri)=>'<div class="cyc-erow2">'+
+      '<input placeholder="Compound" list="cyCompoundSuggest" value="'+esc(r.compound)+'" oninput="editRow('+si+','+ri+',\'compound\',this.value)">'+
+      '<input placeholder="Dosing" value="'+esc(r.dosing)+'" oninput="editRow('+si+','+ri+',\'dosing\',this.value)">'+
+      '<input placeholder="Frequency" value="'+esc(r.frequency)+'" oninput="editRow('+si+','+ri+',\'frequency\',this.value)">'+
+      '<button class="rm" title="Remove compound" onclick="removeRow('+si+','+ri+')">✕</button></div>').join('');
+    h+='<button onclick="addRow('+si+')" style="font-size:12px;margin-top:2px">＋ Add compound</button></div>';
+    return h;}).join('');}
+function editSectionGroup(si,v){if(editSections[si])editSections[si].group=v;}
+function editRow(si,ri,k,v){if(editSections[si]&&editSections[si].rows[ri])editSections[si].rows[ri][k]=v;}
+function addSection(){editSections.push({group:'',rows:[{compound:'',dosing:'',frequency:''}]});renderCycleEditor();}
+function removeSection(si){editSections.splice(si,1);if(!editSections.length)editSections=[{group:'',rows:[{compound:'',dosing:'',frequency:''}]}];renderCycleEditor();}
+function addRow(si){editSections[si].rows.push({compound:'',dosing:'',frequency:''});renderCycleEditor();}
+function removeRow(si,ri){editSections[si].rows.splice(ri,1);if(!editSections[si].rows.length)editSections[si].rows.push({compound:'',dosing:'',frequency:''});renderCycleEditor();}
 function cyLen(){
   const s=document.getElementById('cy_start').value,e=document.getElementById('cy_end').value;
   const el=document.getElementById('cy_len');
@@ -874,7 +890,8 @@ function cyLen(){
 async function saveCycle(){
   const title=document.getElementById('cy_name').value.trim();
   if(!title){alert('Give the cycle a name');return;}
-  const rows=editRows.filter(r=>r.compound||r.group||r.dosing||r.frequency);
+  const rows=[];
+  editSections.forEach(s=>s.rows.forEach(r=>{if(r.compound||r.dosing||r.frequency)rows.push({group:(s.group||'').trim(),compound:r.compound,dosing:r.dosing,frequency:r.frequency});}));
   const obj={title,start_date:document.getElementById('cy_start').value||null,end_date:document.getElementById('cy_end').value||null,
     cost:document.getElementById('cy_cost').value.trim(),notes:document.getElementById('cy_notes').value.trim(),rows};
   const id=document.getElementById('cy_id').value;
