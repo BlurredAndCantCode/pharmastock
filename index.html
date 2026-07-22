@@ -147,7 +147,8 @@
   .dsub.mt{margin-top:20px}
   /* sidebar layout */
   #app{display:flex;min-height:100vh}
-  #sidebar{width:212px;flex:0 0 auto;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px;gap:4px;position:sticky;top:0;height:100vh;overflow:auto}
+  #sidebar{width:212px;flex:0 0 auto;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:16px 12px 60px;gap:4px;position:sticky;top:0;height:100vh;overflow:auto}
+  .sidesel{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;font-size:13px;padding:8px 10px;margin-top:2px}
   #main{flex:1;min-width:0;display:flex;flex-direction:column}
   .side-brand{display:flex;align-items:center;gap:10px;padding:2px 6px 14px}
   .side-brand h1{font-size:18px;margin:0;letter-spacing:1px}
@@ -272,9 +273,9 @@
     <button class="navitem" id="nav-cycles" onclick="setSection('cycles')">🔄 Cycles</button>
   </div>
   <div class="side-label">Filter by effect</div>
-  <div id="sideEffects"></div>
+  <select id="effectFilter" class="sidesel" onchange="setEffect(this.value)"></select>
   <div class="side-label">Filter by tag</div>
-  <div id="sideTags"></div>
+  <select id="tagFilter" class="sidesel" onchange="setTag(this.value)"></select>
   <div class="side-label">View</div>
   <div class="viewseg">
     <button id="segTable" onclick="setView('table')">☰ Table</button>
@@ -580,13 +581,11 @@ function render(){
     return '<th onclick="sortBy(\''+k+'\')">'+l+' '+a+'</th>';}).join('');
   // sidebar effect filters
   const effs=[...new Set(inv.flatMap(parseEffects))].sort();
-  const seff=document.getElementById('sideEffects');
-  if(seff) seff.innerHTML='<button class="filt'+(activeEffect===''?' active':'')+'" onclick="setEffect(\'\')">All effects</button>'+
-    effs.map(e=>'<button class="filt'+(activeEffect===e?' active':'')+'" onclick="setEffect(\''+e.replace(/'/g,"\\'")+'\')"><span style="color:'+catColor(e)+'">●</span> '+esc(e)+'</button>').join('');
+  const seff=document.getElementById('effectFilter');
+  if(seff) seff.innerHTML='<option value="">All effects</option>'+effs.map(e=>'<option value="'+esc(e)+'"'+(activeEffect===e?' selected':'')+'>'+esc(e)+'</option>').join('');
   const alltags=[...new Set(inv.flatMap(parseTags))].sort();
-  const stag=document.getElementById('sideTags');
-  if(stag) stag.innerHTML='<button class="filt'+(activeTag===''?' active':'')+'" onclick="setTag(\'\')">All tags</button>'+
-    alltags.map(t=>'<button class="filt'+(activeTag===t?' active':'')+'" onclick="setTag(\''+t.replace(/'/g,"\\'")+'\')">🏷 '+esc(t)+'</button>').join('');
+  const stag=document.getElementById('tagFilter');
+  if(stag) stag.innerHTML='<option value="">All tags</option>'+alltags.map(t=>'<option value="'+esc(t)+'"'+(activeTag===t?' selected':'')+'>'+esc(t)+'</option>').join('');
   // header stats
   const totalVal=inv.reduce((s,i)=>s+(num(i.price)||0),0);
   const onway=inv.filter(i=>i.status==='On the Way').length;
@@ -826,9 +825,9 @@ function renderCycles(){
     const wk=cycleWeeks(c);if(wk)meta.push(wk+' weeks');
     if(c.cost)meta.push('Cost: '+esc(String(c.cost)));
     meta.push(rows.length+' compound'+(rows.length!==1?'s':''));
-    h+='<div class="cyc-card"><div class="cyc-head"><div><div class="cyc-title">'+esc(c.title||'Untitled cycle')+'</div>'+
+    h+='<div class="cyc-card" id="cyccard-'+c.id+'"><div class="cyc-head"><div><div class="cyc-title">'+esc(c.title||'Untitled cycle')+'</div>'+
       '<div class="cyc-meta">'+meta.join(' · ')+'</div></div>'+
-      '<div class="rowbtns"><button onclick="openCycle(\''+c.id+'\')" title="Edit">✎</button><button onclick="deleteCycle(\''+c.id+'\')" title="Delete">🗑</button></div></div>';
+      '<div class="rowbtns"><button onclick="exportCyclePDF(\''+c.id+'\')" title="Save as PDF">🖨</button><button onclick="exportCyclePNG(\''+c.id+'\')" title="Save as PNG">🖼</button><button onclick="openCycle(\''+c.id+'\')" title="Edit">✎</button><button onclick="deleteCycle(\''+c.id+'\')" title="Delete">🗑</button></div></div>';
     Object.keys(groups).forEach(g=>{
       h+='<div class="cyc-group">'+esc(g)+'</div><table class="cyc-table"><tr><th>Compound</th><th>Dosing</th><th>Frequency</th></tr>';
       groups[g].forEach(r=>{h+='<tr><td>'+esc(r.compound||'')+'</td><td>'+esc(r.dosing||'')+'</td><td>'+esc(r.frequency||'')+'</td></tr>';});
@@ -890,6 +889,38 @@ async function deleteCycle(id){const c=cycles.find(x=>x.id===id);
   const {error}=await sb.from('cycles').delete().eq('id',id);
   if(error){alert(error.message);return;}
   await loadCycles();}
+function exportCyclePDF(id){
+  const c=cycles.find(x=>x.id===id);if(!c)return;
+  const rows=Array.isArray(c.rows)?c.rows:[];
+  const groups={};rows.forEach(r=>{const g=r.group||'General';(groups[g]=groups[g]||[]).push(r);});
+  const meta=[];
+  if(c.start_date||c.end_date)meta.push((c.start_date||'?')+' → '+(c.end_date||'?'));
+  const wk=cycleWeeks(c);if(wk)meta.push(wk+' weeks');
+  if(c.cost)meta.push('Cost: '+esc(String(c.cost)));
+  let h='<h1>'+esc(c.title||'Cycle')+'</h1><div class="psub">'+meta.join(' · ')+'</div>';
+  Object.keys(groups).forEach(g=>{
+    h+='<div class="pcat">'+esc(g)+'</div><table><tr><th>Compound</th><th>Dosing</th><th>Frequency</th></tr>';
+    groups[g].forEach(r=>{h+='<tr><td>'+esc(r.compound||'')+'</td><td>'+esc(r.dosing||'')+'</td><td>'+esc(r.frequency||'')+'</td></tr>';});
+    h+='</table>';});
+  if(c.notes)h+='<div class="psub" style="margin-top:12px">Notes: '+esc(c.notes)+'</div>';
+  document.getElementById('printArea').innerHTML=h;
+  window.print();}
+function exportCyclePNG(id){
+  const el=document.getElementById('cyccard-'+id);if(!el)return;
+  const c=cycles.find(x=>x.id===id);
+  const go=()=>{
+    setSync('rendering PNG…');
+    html2canvas(el,{backgroundColor:getComputedStyle(document.body).backgroundColor,scale:2,
+      ignoreElements:n=>n.classList&&n.classList.contains('rowbtns')}).then(canvas=>{
+      const a=document.createElement('a');a.href=canvas.toDataURL('image/png');
+      a.download=(((c&&c.title)||'cycle').replace(/[^a-z0-9]+/gi,'_'))+'.png';a.click();setSync('synced');
+    }).catch(e=>{setSync('error',true);alert('PNG export failed: '+e.message);});
+  };
+  if(window.html2canvas){go();return;}
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+  s.onload=go;s.onerror=()=>alert('Could not load the image library (check your connection).');
+  document.head.appendChild(s);}
 function prioTag(i){if((i.status||'')!==IDEA||!i.priority)return '';
   const cls={High:'prio-high',Medium:'prio-med',Low:'prio-low'}[i.priority]||'';
   return '<span class="priotag '+cls+'">'+esc(i.priority)+'</span>';}
