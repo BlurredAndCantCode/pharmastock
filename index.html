@@ -241,6 +241,28 @@
     #app.navopen #navscrim{display:block}
     #hamb{display:inline-flex}
   }
+  /* ---------- editorial redesign ---------- */
+  :root{--bg:#0a0b0e;--panel:#111318;--panel2:#171a20;--line:#23262e}
+  header{padding:22px 30px}
+  #sectionTitle{font-size:28px!important}
+  .sub{font-size:12.5px}
+  .wrap{padding:10px 30px 84px}
+  th{padding:12px 14px;font-size:10.5px}
+  td{padding:13px 14px}
+  .grouphdr td{background:transparent!important;border-top:none;border-bottom:1px solid var(--line);padding:24px 14px 9px}
+  .grouphdr b{text-transform:uppercase;letter-spacing:1.3px;font-size:12px}
+  .grouphdr:hover td{background:rgba(127,127,127,.05)!important}
+  .gcount{margin-left:12px}
+  .empty{padding:70px 20px;font-size:14px}
+  .stat{min-width:90px;padding:9px 18px}
+  .toolbar{padding:16px 30px}
+  .chips{padding:0 30px 12px}
+  /* tools dropdown */
+  .toolsmenu{position:relative}
+  .toolspop{position:absolute;top:calc(100% + 6px);left:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:2px;z-index:20;min-width:210px;box-shadow:0 14px 34px rgba(0,0,0,.55)}
+  .toolspop.hidden{display:none}
+  .toolspop button{background:transparent;border-color:transparent;text-align:left;padding:9px 11px;width:100%;font-size:13px}
+  .toolspop button:hover{background:var(--panel2)}
 </style>
 </head>
 <body>
@@ -288,10 +310,13 @@
     <button class="navitem" id="nav-overview" onclick="setSection('overview')">📊 Overview</button>
     <button class="navitem" id="nav-cycles" onclick="setSection('cycles')">🔄 Cycles</button>
   </div>
-  <div class="side-label">Filter by effect</div>
+  <div class="side-label">Filters</div>
+  <select id="catFilter" class="sidesel" onchange="setCat(this.value)"></select>
   <select id="effectFilter" class="sidesel" onchange="setEffect(this.value)"></select>
-  <div class="side-label">Filter by tag</div>
   <select id="tagFilter" class="sidesel" onchange="setTag(this.value)"></select>
+  <select id="statusFilter" class="sidesel"><option value="">All statuses</option><option>In Stock</option><option>On the Way</option><option>Out</option></select>
+  <div class="side-label">Group by</div>
+  <select id="groupBy" class="sidesel"><option value="category">Category</option><option value="effect">Effect</option></select>
   <div class="side-label">View</div>
   <div class="viewseg">
     <button id="segTable" onclick="setView('table')">☰ Table</button>
@@ -317,22 +342,18 @@
 </header>
 
 <div class="toolbar" id="toolbar">
-  <input id="search" placeholder="Search name, use case, dose, notes…">
-  <select id="statusFilter">
-    <option value="">All statuses</option><option>In Stock</option><option>On the Way</option><option>Out</option>
-  </select>
-  <select id="groupBy" title="Group items by">
-    <option value="category">Group: Category</option>
-    <option value="effect">Group: Effect</option>
-  </select>
+  <input id="search" placeholder="Search…">
+  <div class="toolsmenu">
+    <button onclick="toggleTools()">⋯ Tools</button>
+    <div id="toolsPop" class="toolspop hidden">
+      <button onclick="toggleAllGroups();closeTools()">⇕ Expand / collapse all</button>
+      <button onclick="exportCSV();closeTools()">⬇ Export CSV</button>
+      <button onclick="exportPDF();closeTools()">🖨 Export PDF</button>
+    </div>
+  </div>
   <button class="btn-primary" id="addBtn" onclick="openModal()">+ Add Item</button>
-  <button onclick="toggleAllGroups()" title="Expand or collapse all categories">⇕ All</button>
-  <button onclick="exportCSV()">Export CSV</button>
-  <button onclick="exportPDF()" title="Printable PDF report">🖨 PDF</button>
   <span class="whoami" id="whoami" style="margin-left:auto"></span>
 </div>
-
-<div class="chips" id="catChips"></div>
 
 <div class="wrap">
   <div id="overview" class="hidden"></div>
@@ -614,10 +635,8 @@ function render(){
   const isIdea=i=>(i.status||'')===IDEA;
   const inv=items.filter(i=>!isIdea(i));  // real inventory (ideas excluded)
   const cats=[...new Set(inv.map(i=>i.category))].sort();
-  const chips=document.getElementById('catChips');
-  chips.innerHTML='<div class="chip '+(activeCat===''?'active':'')+'" onclick="setCat(\'\')">All ('+inv.length+')</div>'+
-    cats.map(c=>{const n=inv.filter(i=>i.category===c).length;
-      return '<div class="chip '+(activeCat===c?'active':'')+'" onclick="setCat(\''+c.replace(/'/g,"\\'")+'\')"><span style="color:'+catColor(c)+'">●</span> '+esc(c)+' ('+n+')</div>';}).join('');
+  const cf=document.getElementById('catFilter');
+  if(cf) cf.innerHTML='<option value="">All categories ('+inv.length+')</option>'+cats.map(c=>'<option value="'+esc(c)+'"'+(activeCat===c?' selected':'')+'>'+esc(c)+' ('+inv.filter(i=>i.category===c).length+')</option>').join('');
   document.getElementById('head').innerHTML=COLS.map(([k,l])=>{
     if(!k)return '<th></th>';
     const a=sortKey===k?'<span class="sortarrow">'+(sortDir>0?'▲':'▼')+'</span>':'';
@@ -637,18 +656,13 @@ function render(){
   const ideaItems=items.filter(isIdea);
   document.getElementById('stats').innerHTML=
     '<div class="stat"><b>'+inv.length+'</b><small>Items</small></div>'+
-    '<div class="stat"><b>'+cats.length+'</b><small>Categories</small></div>'+
-    '<div class="stat"><b>'+onway+'</b><small>On the Way</small></div>'+
     '<div class="stat'+(lowCount?' warnstat':'')+'"><b>'+lowCount+'</b><small>Low Stock</small></div>'+
-    '<div class="stat'+(expCount?' expstat':'')+'"><b>'+expCount+'</b><small>Expiring</small></div>'+
-    '<div class="stat"><b>'+ideaItems.length+'</b><small>Ideas</small></div>'+
     '<div class="stat"><b>$'+totalVal.toFixed(0)+'</b><small>Total Cost</small></div>';
   // special full-page sections
   const overview=section==='overview', cyc=section==='cycles', special=overview||cyc;
   document.getElementById('overview').classList.toggle('hidden',!overview);
   document.getElementById('cycles').classList.toggle('hidden',!cyc);
   document.getElementById('toolbar').classList.toggle('hidden',special);
-  document.getElementById('catChips').classList.toggle('hidden',special);
   document.getElementById('tableview').classList.toggle('hidden',special||viewMode==='cards');
   document.getElementById('cardview').classList.toggle('hidden',special||viewMode!=='cards');
   if(overview){renderOverview(inv,ideaItems);document.getElementById('empty').style.display='none';
@@ -713,7 +727,7 @@ function render(){
     });
     document.getElementById('rows').innerHTML=html;
   }
-  const EMPTY={inventory:'No items yet. Click <b>+ Add Item</b> to add your first product.',reorder:'Nothing low or out — you\'re fully stocked. 🎉',ideas:'No purchase ideas yet. Click <b>+ Add Idea</b> to start your wishlist.'};
+  const EMPTY={inventory:'<div style="font-size:18px;color:var(--txt);margin-bottom:6px">Your inventory is empty</div><div style="margin-bottom:20px">Add your first product to get started.</div><button class="btn-primary" onclick="openModal()">+ Add your first item</button>',reorder:'Nothing low or out — you\'re fully stocked. 🎉',ideas:'No purchase ideas yet. Click <b>+ Add Idea</b> to start your wishlist.'};
   document.getElementById('empty').innerHTML=(activeCat||activeEffect||activeStatus||q)?'Nothing matches your filters.':(EMPTY[section]||'Nothing here yet.');
   document.getElementById('empty').style.display=list.length?'none':'block';
   if(section==='ideas'){
@@ -794,6 +808,8 @@ function setSection(s){section=s;
   closeNav();render();}
 function toggleNav(){document.getElementById('app').classList.toggle('navopen');}
 function closeNav(){document.getElementById('app').classList.remove('navopen');}
+function toggleTools(){document.getElementById('toolsPop').classList.toggle('hidden');}
+function closeTools(){document.getElementById('toolsPop').classList.add('hidden');}
 function setEffect(e){activeEffect=e;closeNav();render();}
 function setTag(t){activeTag=t;closeNav();render();}
 function parseTags(i){return (i.tags||'').split(',').map(t=>t.trim()).filter(Boolean);}
@@ -1156,6 +1172,7 @@ document.getElementById('statusFilter').onchange=e=>{activeStatus=e.target.value
 document.getElementById('groupBy').onchange=e=>{groupBy=e.target.value;render()};
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.addEventListener('click',e=>{const m=document.querySelector('.toolsmenu');if(m&&!m.contains(e.target))closeTools();});
 boot();
 </script>
 </body>
