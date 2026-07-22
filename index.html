@@ -263,6 +263,16 @@
   .toolspop.hidden{display:none}
   .toolspop button{background:transparent;border-color:transparent;text-align:left;padding:9px 11px;width:100%;font-size:13px}
   .toolspop button:hover{background:var(--panel2)}
+  /* clickable name / bulk / detail */
+  .lnk{cursor:pointer}
+  .lnk:hover{text-decoration:underline}
+  .selbox{vertical-align:middle;margin-right:8px;width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+  #bulkbar{position:sticky;top:0;z-index:6;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 30px;background:var(--accent);color:#04260d;font-weight:600;font-size:13px}
+  #bulkbar button{background:rgba(0,0,0,.18);border-color:transparent;color:#04260d;padding:6px 10px}
+  #bulkbar.hidden{display:none}
+  .dl{display:grid;grid-template-columns:120px 1fr;gap:9px 14px;font-size:13px}
+  .dl dt{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px;padding-top:3px}
+  .dl dd{margin:0;word-break:break-word}
 </style>
 </head>
 <body>
@@ -349,10 +359,21 @@
       <button onclick="toggleAllGroups();closeTools()">⇕ Expand / collapse all</button>
       <button onclick="exportCSV();closeTools()">⬇ Export CSV</button>
       <button onclick="exportPDF();closeTools()">🖨 Export PDF</button>
+      <button onclick="exportJSON();closeTools()">💾 Backup (JSON)</button>
+      <button onclick="document.getElementById('importFile').click();closeTools()">📥 Import CSV / JSON</button>
     </div>
+    <input type="file" id="importFile" accept=".json,.csv,text/csv,application/json" style="display:none" onchange="importFile(event)">
   </div>
   <button class="btn-primary" id="addBtn" onclick="openModal()">+ Add Item</button>
   <span class="whoami" id="whoami" style="margin-left:auto"></span>
+</div>
+<div id="bulkbar" class="hidden">
+  <span id="bulkcount"></span>
+  <button onclick="selectAllShown()">Select all shown</button>
+  <button onclick="bulkStatus('In Stock')">Mark In Stock</button>
+  <button onclick="bulkStatus('Out')">Mark Out</button>
+  <button onclick="bulkDelete()">Delete</button>
+  <button onclick="clearSel()">Clear</button>
 </div>
 
 <div class="wrap">
@@ -484,6 +505,15 @@
   </div>
 </div>
 
+<!-- item detail modal -->
+<div class="overlay" id="detailOverlay">
+  <div class="modal">
+    <h2 id="detailTitle"></h2>
+    <div id="detailBody"></div>
+    <div class="modal-actions" id="detailActions" style="flex-wrap:wrap"></div>
+  </div>
+</div>
+
 <!-- print area (PDF) -->
 <div id="printArea"></div>
 
@@ -513,6 +543,8 @@ let activeTag='';
 let journal=[];
 let cycles=[];
 let editSections=[];
+let selected=new Set();
+let lastShown=[];
 const IDEA='Purchase Idea';
 const EFFECTS=['Fat loss / Metabolic','Muscle / Anabolic','Recovery / Healing','Anti-inflammatory','Sleep','Nootropic / Focus','Mood / Anxiety','Hormonal','Cardiovascular','Longevity / Anti-aging','Immune','Gut health','Energy / Mitochondrial','Libido / Sexual','Skin / Cosmetic'];
 
@@ -663,6 +695,7 @@ function render(){
   document.getElementById('overview').classList.toggle('hidden',!overview);
   document.getElementById('cycles').classList.toggle('hidden',!cyc);
   document.getElementById('toolbar').classList.toggle('hidden',special);
+  if(special)document.getElementById('bulkbar').classList.add('hidden');
   document.getElementById('tableview').classList.toggle('hidden',special||viewMode==='cards');
   document.getElementById('cardview').classList.toggle('hidden',special||viewMode!=='cards');
   if(overview){renderOverview(inv,ideaItems);document.getElementById('empty').style.display='none';
@@ -681,6 +714,7 @@ function render(){
     if(q){const hay=(i.name+' '+i.category+' '+(i.uses||'')+' '+(i.dose||'')+' '+(i.notes||'')+' '+(i.form||'')+' '+(i.source||'')+' '+(i.effect||'')+' '+(i.tags||'')).toLowerCase();
       if(!hay.includes(q))return false;}
     return true;});
+  lastShown=list.map(i=>i.id);
   const cmp=(a,b)=>{let x=a[sortKey],y=b[sortKey];
     if(sortKey==='qty'||sortKey==='price'){x=num(x)??-1;y=num(y)??-1;return (x-y)*sortDir;}
     x=(x==null?'':String(x)).toLowerCase();y=(y==null?'':String(y)).toLowerCase();
@@ -690,7 +724,7 @@ function render(){
     const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':st===IDEA?'b-idea':'b-out';
     const lo=isLow(i);
     return '<tr class="'+(lo?'low':'')+'">'+
-      '<td class="name">'+esc(i.name)+prioTag(i)+(lo?'<span class="lowtag">LOW</span>':'')+expTag(i)+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+(i.effect?'<div class="dose">⚙ '+esc(i.effect)+'</div>':'')+(i.source?'<div class="dose">🛒 '+esc(i.source)+'</div>':'')+(parseTags(i).length?'<div>'+tagPills(i)+'</div>':'')+'</td>'+
+      '<td class="name"><input type="checkbox" class="selbox" '+(selected.has(i.id)?'checked':'')+' onclick="toggleSel(event,\''+i.id+'\')"><span class="lnk" onclick="showDetail(\''+i.id+'\')">'+esc(i.name)+'</span>'+prioTag(i)+(lo?'<span class="lowtag">LOW</span>':'')+expTag(i)+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+(i.effect?'<div class="dose">⚙ '+esc(i.effect)+'</div>':'')+(i.source?'<div class="dose">🛒 '+esc(i.source)+'</div>':'')+(parseTags(i).length?'<div>'+tagPills(i)+'</div>':'')+'</td>'+
       '<td>'+esc(i.form||'')+'</td>'+
       '<td class="qty">'+esc(String(i.qty??''))+'</td>'+
       '<td class="dose">'+esc(i.dose||'')+'</td>'+
@@ -741,6 +775,7 @@ function render(){
     const onWayVal=inv.filter(i=>i.status==='On the Way').reduce((s,i)=>s+(num(i.price)||0),0);
     document.getElementById('value').innerHTML='In stock <b style="color:var(--accent)">$'+inStockVal.toFixed(0)+'</b> · On the way <b style="color:var(--warn)">$'+onWayVal.toFixed(0)+'</b>';
   }
+  updateBulkBar();
 }
 function setCat(c){activeCat=c;render()}
 function sortBy(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=1}render()}
@@ -782,7 +817,7 @@ function cardHTML(i){
       '<button title="Duplicate" onclick="duplicateItem(\''+i.id+'\')">⧉</button>'+
       '<button title="Edit" onclick="edit(\''+i.id+'\')">✎</button>'+
       '<button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></div>'+
-    '<h4>'+esc(i.name)+prioTag(i)+(lo?'<span class="lowtag">LOW</span>':'')+expTag(i)+'</h4>'+
+    '<h4><span class="lnk" onclick="showDetail(\''+i.id+'\')">'+esc(i.name)+'</span>'+prioTag(i)+(lo?'<span class="lowtag">LOW</span>':'')+expTag(i)+'</h4>'+
     '<div class="meta">'+
       ((i.qty!=null&&i.qty!=='')?'<b style="color:var(--txt)">'+esc(String(i.qty))+'</b> '+esc(i.unit||''):'')+
       (i.form?(((i.qty!=null&&i.qty!=='')?' · ':'')+esc(i.form)):'')+
@@ -797,7 +832,7 @@ function cardHTML(i){
 function setView(v){viewMode=v;localStorage.setItem('ps_view',v);updateViewSeg();render();}
 function updateViewSeg(){const t=document.getElementById('segTable'),c=document.getElementById('segCards');
   if(t)t.classList.toggle('active',viewMode==='table');if(c)c.classList.toggle('active',viewMode==='cards');}
-function setSection(s){section=s;
+function setSection(s){section=s;selected.clear();
   ['inventory','reorder','ideas','overview','cycles'].forEach(x=>{const el=document.getElementById('nav-'+x);if(el)el.classList.toggle('active',x===s);});
   const T={inventory:'Inventory',reorder:'Restock',ideas:'Purchase Ideas',overview:'Overview',cycles:'Cycles'};
   const S={inventory:'Everything you have on hand',reorder:'Items that are low or out of stock',ideas:'Things you want to buy',overview:'Your stats & summaries',cycles:'Plan and save your cycles'};
@@ -810,6 +845,71 @@ function toggleNav(){document.getElementById('app').classList.toggle('navopen');
 function closeNav(){document.getElementById('app').classList.remove('navopen');}
 function toggleTools(){document.getElementById('toolsPop').classList.toggle('hidden');}
 function closeTools(){document.getElementById('toolsPop').classList.add('hidden');}
+// ---------- bulk select ----------
+function toggleSel(e,id){e.stopPropagation();if(selected.has(id))selected.delete(id);else selected.add(id);updateBulkBar();}
+function selectAllShown(){lastShown.forEach(id=>selected.add(id));render();}
+function clearSel(){selected.clear();render();}
+function updateBulkBar(){const b=document.getElementById('bulkbar');if(!b)return;
+  b.classList.toggle('hidden',selected.size===0);
+  const c=document.getElementById('bulkcount');if(c)c.textContent=selected.size+' selected';}
+async function bulkStatus(s){if(!selected.size)return;setSync('updating…');
+  const {error}=await sb.from('items').update({status:s}).in('id',[...selected]);
+  if(error){setSync('error',true);alert(error.message);return;}selected.clear();await loadItems();}
+async function bulkDelete(){if(!selected.size)return;
+  if(!confirm('Delete '+selected.size+' selected item(s)? This cannot be undone.'))return;
+  setSync('deleting…');const {error}=await sb.from('items').delete().in('id',[...selected]);
+  if(error){setSync('error',true);alert(error.message);return;}selected.clear();await loadItems();}
+// ---------- item detail ----------
+function showDetail(id){const i=items.find(x=>x.id===id);if(!i)return;
+  const st=i.status||'In Stock';
+  const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':st===IDEA?'b-idea':'b-out';
+  document.getElementById('detailTitle').innerHTML=esc(i.name)+prioTag(i)+' <span class="badge '+stc+'" style="font-size:11px;vertical-align:middle">'+esc(st)+'</span>';
+  const D=[['Category',i.category],['Effect',i.effect],['Form',i.form],['Quantity',(i.qty!=null&&i.qty!=='')?((i.qty)+' '+(i.unit||'')).trim():''],['Dose',i.dose],['Price',(i.price!=null&&i.price!=='')?'$'+Number(i.price).toFixed(0):''],['Reorder at',i.reorder],['Expiry',i.expiry],['Source',i.source],['Tags',parseTags(i).join(', ')],['Use cases',i.uses],['Notes',i.notes]];
+  document.getElementById('detailBody').innerHTML='<dl class="dl">'+D.filter(r=>r[1]).map(r=>'<dt>'+r[0]+'</dt><dd>'+esc(String(r[1]))+'</dd>').join('')+'</dl>';
+  let acts=(st===IDEA?'<button onclick="closeDetail();moveToInventory(\''+i.id+'\')">➕ To inventory</button>':'')+
+    '<button onclick="closeDetail();edit(\''+i.id+'\')">✎ Edit</button>'+
+    '<button onclick="closeDetail();duplicateItem(\''+i.id+'\')">⧉ Duplicate</button>'+
+    '<button onclick="del(\''+i.id+'\');closeDetail()" style="border-color:var(--danger);color:var(--danger)">🗑 Delete</button>'+
+    '<button onclick="closeDetail()">Close</button>';
+  document.getElementById('detailActions').innerHTML=acts;
+  document.getElementById('detailOverlay').classList.add('show');}
+function closeDetail(){document.getElementById('detailOverlay').classList.remove('show');}
+// ---------- JSON backup + import ----------
+function exportJSON(){
+  const data=JSON.stringify(items.map(({user_id,...r})=>r),null,2);
+  const b=new Blob([data],{type:'application/json'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='pharmastock_backup.json';a.click();}
+function parseCSV(text){
+  const rows=[];let f='',cur=[],i=0,inq=false;const n=text.length;
+  const pf=()=>{cur.push(f);f='';};const pr=()=>{pf();rows.push(cur);cur=[];};
+  while(i<n){const c=text[i];
+    if(inq){if(c=='"'){if(text[i+1]=='"'){f+='"';i+=2;continue;}inq=false;i++;continue;}f+=c;i++;continue;}
+    if(c=='"'){inq=true;i++;continue;}
+    if(c==','){pf();i++;continue;}
+    if(c=='\r'){i++;continue;}
+    if(c=='\n'){pr();i++;continue;}
+    f+=c;i++;}
+  if(f.length||cur.length)pr();
+  if(!rows.length)return [];
+  const header=rows[0].map(h=>h.trim().toLowerCase());
+  const km={'use cases':'uses','source / where bought':'source','where bought':'source','effect / function':'effect','qty on hand':'qty','dose / conc.':'dose'};
+  return rows.slice(1).filter(r=>r.some(c=>c.trim())).map(r=>{const o={};header.forEach((h,x)=>{o[km[h]||h]=(r[x]||'').trim();});return o;});}
+function importFile(e){const file=e.target.files[0];if(!file)return;const rd=new FileReader();
+  rd.onload=async()=>{
+    let rows;
+    try{ rows=(file.name.toLowerCase().endsWith('.json')||rd.result.trim().startsWith('['))?JSON.parse(rd.result):parseCSV(rd.result); }
+    catch(err){alert('Could not read file: '+err.message);return;}
+    if(!Array.isArray(rows)||!rows.length){alert('No rows found in the file.');return;}
+    const ok=['name','category','form','qty','unit','dose','price','status','reorder','expiry','uses','notes','source','effect','tags','priority'];
+    const clean=rows.map(o=>{const nn={user_id:user.id};ok.forEach(k=>{if(o[k]!=null&&o[k]!=='')nn[k]=o[k];});return nn;}).filter(o=>o.name);
+    if(!clean.length){alert('No valid items found (each needs a name).');return;}
+    clean.forEach(o=>{if(o.price!=null&&o.price!==''){const p=Number(String(o.price).replace(/[^0-9.\-]/g,''));o.price=isNaN(p)?null:p;}});
+    if(!confirm('Import '+clean.length+' item(s) into your inventory?'))return;
+    setSync('importing…');
+    const {error}=await sb.from('items').insert(clean);
+    if(error){setSync('error',true);alert(error.message);return;}
+    e.target.value='';await loadItems();alert('Imported '+clean.length+' item(s).');
+  };rd.readAsText(file);}
 function setEffect(e){activeEffect=e;closeNav();render();}
 function setTag(t){activeTag=t;closeNav();render();}
 function parseTags(i){return (i.tags||'').split(',').map(t=>t.trim()).filter(Boolean);}
@@ -1165,6 +1265,7 @@ document.getElementById('settingsOverlay').addEventListener('click',e=>{if(e.tar
 document.getElementById('dashOverlay').addEventListener('click',e=>{if(e.target.id==='dashOverlay')closeDash()});
 document.getElementById('logOverlay').addEventListener('click',e=>{if(e.target.id==='logOverlay')closeLog()});
 document.getElementById('cycleOverlay').addEventListener('click',e=>{if(e.target.id==='cycleOverlay')closeCycle()});
+document.getElementById('detailOverlay').addEventListener('click',e=>{if(e.target.id==='detailOverlay')closeDetail()});
 
 document.getElementById('f_name').addEventListener('input',autofillFromName);
 document.getElementById('search').oninput=e=>{q=e.target.value.toLowerCase().trim();render()};
