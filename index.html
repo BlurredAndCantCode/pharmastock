@@ -342,8 +342,8 @@
       <div class="field"><label>Category</label>
         <input id="f_category" list="catSuggest" autocomplete="off" placeholder="Pick or type a category…">
         <datalist id="catSuggest"></datalist></div>
-      <div class="field"><label>Effect / Function</label>
-        <input id="f_effect" list="effectSuggest" autocomplete="off" placeholder="Pick or type what it does…">
+      <div class="field"><label>Effect / Function <span style="text-transform:none;letter-spacing:0">(comma-separated)</span></label>
+        <input id="f_effect" list="effectSuggest" autocomplete="off" placeholder="e.g. Hormonal, Recovery">
         <datalist id="effectSuggest"></datalist></div>
       <div class="field"><label>Form</label>
         <select id="f_form">
@@ -579,7 +579,7 @@ function render(){
     const a=sortKey===k?'<span class="sortarrow">'+(sortDir>0?'▲':'▼')+'</span>':'';
     return '<th onclick="sortBy(\''+k+'\')">'+l+' '+a+'</th>';}).join('');
   // sidebar effect filters
-  const effs=[...new Set(inv.map(i=>i.effect).filter(Boolean))].sort();
+  const effs=[...new Set(inv.flatMap(parseEffects))].sort();
   const seff=document.getElementById('sideEffects');
   if(seff) seff.innerHTML='<button class="filt'+(activeEffect===''?' active':'')+'" onclick="setEffect(\'\')">All effects</button>'+
     effs.map(e=>'<button class="filt'+(activeEffect===e?' active':'')+'" onclick="setEffect(\''+e.replace(/'/g,"\\'")+'\')"><span style="color:'+catColor(e)+'">●</span> '+esc(e)+'</button>').join('');
@@ -619,7 +619,7 @@ function render(){
     else { if(isIdea(i))return false;
       if(section==='reorder' && !(isLow(i)||(i.status||'In Stock')==='Out'))return false; }
     if(activeCat&&i.category!==activeCat)return false;
-    if(activeEffect&&(i.effect||'')!==activeEffect)return false;
+    if(activeEffect&&!parseEffects(i).includes(activeEffect))return false;
     if(activeTag&&!parseTags(i).includes(activeTag))return false;
     if(activeStatus&&(i.status||'In Stock')!==activeStatus)return false;
     if(q){const hay=(i.name+' '+i.category+' '+(i.uses||'')+' '+(i.dose||'')+' '+(i.notes||'')+' '+(i.form||'')+' '+(i.source||'')+' '+(i.effect||'')+' '+(i.tags||'')).toLowerCase();
@@ -643,10 +643,13 @@ function render(){
       '<td><span class="badge '+stc+'">'+esc(st)+'</span>'+(st==='On the Way'?'<label class="arrived" title="Tick when it arrives — moves to In Stock"><input type="checkbox" onchange="receive(\''+i.id+'\',this)"> arrived</label>':'')+'</td>'+
       '<td class="rowbtns">'+(st===IDEA?'<button title="I bought it — move to inventory" onclick="moveToInventory(\''+i.id+'\')">➕</button>':'')+'<button title="Duplicate" onclick="duplicateItem(\''+i.id+'\')">⧉</button><button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
     '</tr>';};
-  // group by category or effect
-  const gkey=i=>groupBy==='effect'?(i.effect||'— No effect set —'):(i.category||'Uncategorized');
+  // group by category, or by effect (an item can appear under multiple effects)
   const groups={};
-  list.forEach(i=>{const k=gkey(i);(groups[k]=groups[k]||[]).push(i);});
+  if(groupBy==='effect'){
+    list.forEach(i=>{const es=parseEffects(i);(es.length?es:['— No effect set —']).forEach(k=>{(groups[k]=groups[k]||[]).push(i);});});
+  } else {
+    list.forEach(i=>{const k=i.category||'Uncategorized';(groups[k]=groups[k]||[]).push(i);});
+  }
   const gcats=Object.keys(groups).sort();
   if(viewMode==='cards'){
     let ch='';
@@ -752,6 +755,7 @@ function closeNav(){document.getElementById('app').classList.remove('navopen');}
 function setEffect(e){activeEffect=e;closeNav();render();}
 function setTag(t){activeTag=t;closeNav();render();}
 function parseTags(i){return (i.tags||'').split(',').map(t=>t.trim()).filter(Boolean);}
+function parseEffects(i){return (i.effect||'').split(',').map(t=>t.trim()).filter(Boolean);}
 function tagPills(i){return parseTags(i).map(t=>'<span class="tag">'+esc(t)+'</span>').join('');}
 function buildTagSuggest(){
   const set=new Set();items.forEach(i=>parseTags(i).forEach(t=>set.add(t)));
@@ -976,7 +980,7 @@ function buildCatSuggest(){
 }
 function buildEffectSuggest(){
   const set=new Set(EFFECTS);
-  items.forEach(i=>{if(i.effect)set.add(i.effect);});
+  items.forEach(i=>parseEffects(i).forEach(e=>set.add(e)));
   document.getElementById('effectSuggest').innerHTML=[...set].sort().map(c=>'<option value="'+esc(c)+'">').join('');
 }
 function openModal(){const idea=section==='ideas';
