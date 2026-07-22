@@ -72,7 +72,11 @@
   footer{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);padding:8px 22px;font-size:12px;color:var(--muted);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
   .sortarrow{font-size:9px}
   /* gate screens */
-  .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  #bgfx{position:fixed;inset:0;z-index:0;display:none;pointer-events:none;background:radial-gradient(circle at 50% 38%,#12151d,#05060a 70%)}
+  .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;position:relative;z-index:1}
+  .card.hero{background:rgba(18,22,29,.72);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border-color:#2a3140;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+  .card.hero h2{font-size:36px;line-height:1;letter-spacing:2px;margin-bottom:12px}
+  .card.hero .dot{color:var(--accent)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:30px;width:100%;max-width:420px}
   .card h2{margin:0 0 6px;letter-spacing:2px}.card h2 span{color:var(--accent)}
   .card p{color:var(--muted);font-size:13px;margin:0 0 20px}
@@ -236,6 +240,7 @@
 </style>
 </head>
 <body>
+<canvas id="bgfx"></canvas>
 
 <!-- ============ SETUP GATE ============ -->
 <div id="setupGate" class="gate">
@@ -252,8 +257,8 @@
 
 <!-- ============ AUTH GATE ============ -->
 <div id="authGate" class="gate hidden">
-  <div class="card">
-    <h2>Pharma<span>Stock</span></h2>
+  <div class="card hero">
+    <h2>Pharma<span>Stock</span><span class="dot">.</span></h2>
     <p class="tagline">A private inventory tracker for your supplements, peptides, and compounds. Log your own stash, search and sort it, track quantities, costs, and reorder points — all synced to your account across every device.</p>
     <p id="authSub">Log in to your inventory.</p>
     <div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email"></div>
@@ -502,11 +507,38 @@ function show(id){document.getElementById(id).classList.remove('hidden')}
 function hide(id){document.getElementById(id).classList.add('hidden')}
 
 // ---------- boot ----------
+// ---------- animated login background ----------
+let _bgRAF=null;
+function startBg(){
+  const cv=document.getElementById('bgfx');if(!cv)return;
+  cv.style.display='block';
+  const ctx=cv.getContext('2d');
+  let w,h;
+  function resize(){w=cv.width=window.innerWidth;h=cv.height=window.innerHeight;}
+  resize();window.onresize=resize;
+  const n=Math.min(150,Math.floor(w*h/11000));
+  const parts=[];
+  for(let i=0;i<n;i++)parts.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.35+.12,vy:(Math.random()-.5)*.22,r:Math.random()*1.6+.4,c:Math.random()<.16});
+  function step(){
+    ctx.clearRect(0,0,w,h);
+    for(const p of parts){p.x+=p.vx;p.y+=p.vy;
+      if(p.x>w+6)p.x=-6;if(p.x<-6)p.x=w+6;if(p.y>h+6)p.y=-6;if(p.y<-6)p.y=h+6;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.3);
+      ctx.fillStyle=p.c?'rgba(248,81,73,.85)':'rgba(230,237,243,.5)';ctx.fill();}
+    for(let i=0;i<parts.length;i++)for(let j=i+1;j<parts.length;j++){
+      const a=parts[i],b=parts[j],dx=a.x-b.x,dy=a.y-b.y,d=dx*dx+dy*dy;
+      if(d<10000){ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+        ctx.strokeStyle='rgba(255,255,255,'+(.05*(1-d/10000))+')';ctx.lineWidth=1;ctx.stroke();}}
+    _bgRAF=requestAnimationFrame(step);
+  }
+  step();
+}
+function stopBg(){const cv=document.getElementById('bgfx');if(cv)cv.style.display='none';if(_bgRAF)cancelAnimationFrame(_bgRAF);_bgRAF=null;}
 function boot(){
   applyAccent();applyTheme();
   let cfg=JSON.parse(localStorage.getItem(CFG_KEY)||'null');
   if(!cfg && BAKED.url.indexOf('PASTE')===-1) cfg=BAKED;
-  if(!cfg){show('setupGate');return;}
+  if(!cfg){show('setupGate');startBg();return;}
   initClient(cfg);
 }
 function initClient(cfg){
@@ -515,7 +547,7 @@ function initClient(cfg){
   hide('setupGate');
   sb.auth.getSession().then(({data})=>{
     if(data.session){ user=data.session.user; enterApp(); }
-    else show('authGate');
+    else { show('authGate'); startBg(); }
   });
   sb.auth.onAuthStateChange((_e,session)=>{
     if(session){user=session.user;} 
@@ -560,7 +592,7 @@ async function logout(){await sb.auth.signOut();location.reload();}
 
 // ---------- app ----------
 async function enterApp(){
-  hide('authGate');show('app');
+  hide('authGate');show('app');stopBg();
   document.getElementById('whoami').textContent=user.email;
   updateViewSeg();
   await loadItems();
