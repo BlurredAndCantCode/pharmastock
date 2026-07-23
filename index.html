@@ -331,6 +331,31 @@
   .rowmenu.hidden{display:none}
   .rowmenu button{display:block;width:100%;text-align:left;background:transparent;border:none;padding:9px 12px;font-size:13px;border-radius:8px;cursor:pointer}
   .rowmenu button:hover{background:var(--panel2)}
+  /* ===== animations & micro-interactions ===== */
+  @keyframes modalin{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  @keyframes popin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  @keyframes fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes rowin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .overlay{transition:opacity .18s ease}
+  .overlay.show .modal{animation:modalin .22s cubic-bezier(.2,.7,.3,1)}
+  .rowmenu:not(.hidden),.fpop:not(.hidden),.toolspop:not(.hidden){animation:popin .14s ease}
+  #surface:not(.hidden),#overview:not(.hidden),#cycles:not(.hidden){animation:fadeup .28s ease}
+  .cyc-card,.icard{animation:rowin .3s ease both}
+  .navitem,.cattab,.seg button,.tbtn,.stat,.icard,.btn-primary,.iconbtn,.chip,.swatch,#search,.cyc-card{transition:background .16s,color .16s,border-color .16s,transform .12s,box-shadow .16s,filter .16s}
+  button:active{transform:translateY(1px)}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-primary:active{transform:translateY(1px) scale(.99)}
+  .navitem:hover{transform:translateX(2px)}
+  .tbtn:hover{border-color:#33405a}
+  #search:focus{border-color:#33405a;box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+  .stat:hover{border-color:#2b3242;transform:translateY(-1px)}
+  .icard:hover{transform:translateY(-3px);border-color:#2f3746;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+  .cyc-card:hover{border-color:#2b3242}
+  tr td{transition:background .12s}
+  .cattab:hover{color:var(--txt)}
+  .iconbtn:active{transform:scale(.9)}
+  body{transition:background-color .3s ease,color .3s ease}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -1091,7 +1116,7 @@ function renderCycleEditor(){
       '<input placeholder="Topic (e.g. Androgens)" list="cyGroupSuggest" value="'+esc(s.group)+'" oninput="editSectionGroup('+si+',this.value)">'+
       '<button class="rm" title="Remove this topic" onclick="removeSection('+si+')">✕ topic</button></div>';
     h+=s.rows.map((r,ri)=>'<div class="cyc-erow2">'+
-      '<input placeholder="Compound" list="cyCompoundSuggest" value="'+esc(r.compound)+'" oninput="editRow('+si+','+ri+',\'compound\',this.value)">'+
+      '<input placeholder="Compound (from inventory or type)" list="cyCompoundSuggest" value="'+esc(r.compound)+'" oninput="editRow('+si+','+ri+',\'compound\',this.value)" onchange="cyAutofill('+si+','+ri+',this.value)">'+
       '<input placeholder="Dosing" value="'+esc(r.dosing)+'" oninput="editRow('+si+','+ri+',\'dosing\',this.value)">'+
       '<input placeholder="Frequency" value="'+esc(r.frequency)+'" oninput="editRow('+si+','+ri+',\'frequency\',this.value)">'+
       '<button class="rm" title="Remove compound" onclick="removeRow('+si+','+ri+')">✕</button></div>').join('');
@@ -1099,6 +1124,11 @@ function renderCycleEditor(){
     return h;}).join('');}
 function editSectionGroup(si,v){if(editSections[si])editSections[si].group=v;}
 function editRow(si,ri,k,v){if(editSections[si]&&editSections[si].rows[ri])editSections[si].rows[ri][k]=v;}
+function cyAutofill(si,ri,name){
+  const it=items.find(x=>(x.name||'').toLowerCase()===(name||'').trim().toLowerCase());
+  if(!it)return;const row=editSections[si]&&editSections[si].rows[ri];if(!row)return;
+  if(!row.dosing&&it.dose)row.dosing=it.dose;
+  renderCycleEditor();}
 function addSection(){editSections.push({group:'',rows:[{compound:'',dosing:'',frequency:''}]});renderCycleEditor();}
 function removeSection(si){editSections.splice(si,1);if(!editSections.length)editSections=[{group:'',rows:[{compound:'',dosing:'',frequency:''}]}];renderCycleEditor();}
 function addRow(si){editSections[si].rows.push({compound:'',dosing:'',frequency:''});renderCycleEditor();}
