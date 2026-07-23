@@ -274,6 +274,63 @@
   .dl{display:grid;grid-template-columns:120px 1fr;gap:9px 14px;font-size:13px}
   .dl dt{color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px;padding-top:3px}
   .dl dd{margin:0;word-break:break-word}
+  /* ===== SaaS dashboard redesign ===== */
+  :root{--accent:#3b82f6;--ok:#3fb950}
+  #sidebar{width:214px;padding:18px 14px 60px;gap:2px}
+  .side-brand{padding:2px 8px 20px}.side-brand h1{font-size:17px}
+  .side-nav{gap:3px}
+  .navitem{padding:11px 12px;border-radius:12px;font-size:14px;gap:11px}
+  .navitem.active{background:rgba(59,130,246,.14);color:#cfe0ff;border-color:transparent;font-weight:600}
+  header{padding:26px 32px 6px;align-items:flex-start}
+  #sectionTitle{font-size:30px!important;font-weight:700;letter-spacing:-.5px}
+  .sub{font-size:13px;margin-top:3px}
+  .stats{gap:14px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px 22px;min-width:118px;text-align:left}
+  .stat b{font-size:25px;color:#7aa7ff;font-weight:700}
+  .stat small{font-size:11px;letter-spacing:.2px;text-transform:none;color:var(--muted);margin-top:3px}
+  .stat.warnstat b{color:var(--warn)}
+  .toolbar{padding:16px 32px;gap:12px}
+  #search{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;flex:1;min-width:220px}
+  .tbtn{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:11px 15px;display:inline-flex;align-items:center;gap:8px;font-size:14px}
+  .badge-num{background:var(--accent);color:#fff;border-radius:20px;font-size:11px;padding:1px 8px;font-weight:600}
+  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px}
+  .seg button{border:none;background:transparent;border-radius:10px;padding:8px 14px;font-size:13px;color:var(--muted)}
+  .seg button.active{background:rgba(59,130,246,.16);color:#cfe0ff;font-weight:600}
+  .btn-primary{border-radius:14px;padding:12px 18px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+  .filtwrap{position:relative}
+  .fpop{position:absolute;top:calc(100% + 8px);right:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;z-index:30;width:260px;box-shadow:0 18px 44px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:12px}
+  .fpop.hidden{display:none}
+  .fpop label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);display:block;margin-bottom:5px}
+  .fpop select{width:100%;background:var(--panel2);border-radius:10px;padding:9px 11px}
+  .surface{background:var(--panel);border:1px solid var(--line);border-radius:18px;margin:8px 32px 40px;overflow:hidden}
+  .wrap{padding:0}
+  #overview,#cycles{padding:8px 32px 40px}
+  .cattabs{display:flex;gap:0;padding:4px 12px 0;border-bottom:1px solid var(--line);overflow-x:auto}
+  .cattab{background:transparent;border:none;color:var(--muted);padding:15px 16px;font-size:14px;white-space:nowrap;border-bottom:2px solid transparent;cursor:pointer}
+  .cattab .n{font-size:12px;margin-left:8px;opacity:.8}
+  .cattab.active{color:var(--txt);border-bottom-color:var(--accent);font-weight:600}
+  .cattab.active .n{color:var(--accent);opacity:1}
+  th{border-bottom:1px solid var(--line);padding:15px 22px;color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;font-weight:500}
+  td{padding:15px 22px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  .iconbox{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--muted)}
+  .prodcell{display:flex;align-items:center;gap:14px}
+  .prodname{font-weight:600;font-size:15px}
+  .prodsub{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .stockbig{font-size:20px;font-weight:700}
+  .price{color:var(--txt)!important;font-weight:600}
+  .badge{padding:5px 11px;border-radius:20px;font-size:11.5px;display:inline-flex;align-items:center;gap:6px}
+  .badge::before{content:"●";font-size:8px;line-height:1}
+  .b-stock{background:rgba(63,185,80,.14)!important;color:var(--ok)!important}
+  .b-low{background:rgba(210,153,34,.14);color:var(--warn)}
+  .iconbtn{background:transparent;border:none;color:var(--muted);font-size:20px;padding:4px 10px;border-radius:8px;line-height:1;cursor:pointer}
+  .iconbtn:hover{background:var(--panel2);color:var(--txt)}
+  .selbox{opacity:0;transition:.12s;margin-right:0}
+  tr:hover .selbox,.selbox:checked{opacity:1}
+  .rowmenu{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;z-index:60;min-width:170px;box-shadow:0 16px 40px rgba(0,0,0,.6)}
+  .rowmenu.hidden{display:none}
+  .rowmenu button{display:block;width:100%;text-align:left;background:transparent;border:none;padding:9px 12px;font-size:13px;border-radius:8px;cursor:pointer}
+  .rowmenu button:hover{background:var(--panel2)}
 </style>
 </head>
 <body>
@@ -316,32 +373,14 @@
     <h1>Pharma<span>Stock</span></h1>
   </div>
   <div class="side-nav">
+    <button class="navitem" id="nav-overview" onclick="setSection('overview')">▦ Overview</button>
     <button class="navitem" id="nav-inventory" onclick="setSection('inventory')">📦 Inventory</button>
     <button class="navitem" id="nav-reorder" onclick="setSection('reorder')">🛒 Restock</button>
     <button class="navitem" id="nav-ideas" onclick="setSection('ideas')">💡 Purchase Ideas</button>
-    <button class="navitem" id="nav-overview" onclick="setSection('overview')">📊 Overview</button>
     <button class="navitem" id="nav-cycles" onclick="setSection('cycles')">🔄 Cycles</button>
-  </div>
-  <div class="side-label">Filters</div>
-  <select id="catFilter" class="sidesel" onchange="setCat(this.value)"></select>
-  <select id="effectFilter" class="sidesel" onchange="setEffect(this.value)"></select>
-  <select id="tagFilter" class="sidesel" onchange="setTag(this.value)"></select>
-  <select id="statusFilter" class="sidesel"><option value="">All statuses</option><option>In Stock</option><option>On the Way</option><option>Out</option></select>
-  <div class="side-label">Group by</div>
-  <select id="groupBy" class="sidesel"><option value="category">Category</option><option value="effect">Effect</option></select>
-  <div class="side-label">View</div>
-  <div class="viewseg">
-    <button id="segTable" onclick="setView('table')">☰ Table</button>
-    <button id="segCards" onclick="setView('cards')">⊞ Cards</button>
-  </div>
-  <div class="side-label">Theme</div>
-  <div class="viewseg">
-    <button onclick="setTheme('dark')">🌙 Dark</button>
-    <button onclick="setTheme('light')">☀️ Light</button>
   </div>
   <div class="side-spacer"></div>
   <button class="navitem" onclick="openSettings()">⚙ Account</button>
-  <button class="navitem" onclick="logout()">⎋ Log out</button>
 </aside>
 <main id="main">
 <header>
@@ -354,20 +393,23 @@
 </header>
 
 <div class="toolbar" id="toolbar">
-  <input id="search" placeholder="Search…">
-  <div class="toolsmenu">
-    <button onclick="toggleTools()">⋯ Tools</button>
-    <div id="toolsPop" class="toolspop hidden">
-      <button onclick="toggleAllGroups();closeTools()">⇕ Expand / collapse all</button>
-      <button onclick="exportCSV();closeTools()">⬇ Export CSV</button>
-      <button onclick="exportPDF();closeTools()">🖨 Export PDF</button>
-      <button onclick="exportJSON();closeTools()">💾 Backup (JSON)</button>
-      <button onclick="document.getElementById('importFile').click();closeTools()">📥 Import CSV / JSON</button>
+  <input id="search" placeholder="Search inventory…">
+  <div class="filtwrap">
+    <button class="tbtn" onclick="toggleFilters()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg> Filters <span id="filtCount" class="badge-num hidden">0</span></button>
+    <div id="filtPop" class="fpop hidden">
+      <div><label>Status</label><select id="statusFilter"><option value="">All statuses</option><option>In Stock</option><option>On the Way</option><option>Out</option></select></div>
+      <div><label>Effect</label><select id="effectFilter" onchange="setEffect(this.value)"></select></div>
+      <div><label>Tag</label><select id="tagFilter" onchange="setTag(this.value)"></select></div>
+      <div><label>Group by</label><select id="groupBy"><option value="none">None (flat list)</option><option value="category">Category</option><option value="effect">Effect</option></select></div>
+      <button class="tbtn" style="justify-content:center" onclick="clearFilters()">Clear all filters</button>
     </div>
-    <input type="file" id="importFile" accept=".json,.csv,text/csv,application/json" style="display:none" onchange="importFile(event)">
   </div>
-  <button class="btn-primary" id="addBtn" onclick="openModal()">+ Add Item</button>
-  <span class="whoami" id="whoami" style="margin-left:auto"></span>
+  <div class="seg">
+    <button id="segTable" onclick="setView('table')">☰ Table</button>
+    <button id="segCards" onclick="setView('cards')">⊞ Cards</button>
+  </div>
+  <button class="btn-primary" id="addBtn" onclick="openModal()">+ Add item</button>
+  <input type="file" id="importFile" accept=".json,.csv,text/csv,application/json" style="display:none" onchange="importFile(event)">
 </div>
 <div id="bulkbar" class="hidden">
   <span id="bulkcount"></span>
@@ -381,15 +423,14 @@
 <div class="wrap">
   <div id="overview" class="hidden"></div>
   <div id="cycles" class="hidden"></div>
-  <table id="tableview"><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
-  <div class="cards hidden" id="cardview"></div>
-  <div class="empty" id="empty" style="display:none">Nothing here yet.</div>
+  <div class="surface" id="surface">
+    <div class="cattabs" id="catTabs"></div>
+    <table id="tableview"><thead><tr id="head"></tr></thead><tbody id="rows"></tbody></table>
+    <div class="cards hidden" id="cardview"></div>
+    <div class="empty" id="empty" style="display:none">Nothing here yet.</div>
+  </div>
 </div>
-
-<footer>
-  <span id="count"></span><span id="value"></span>
-  <span id="syncState" style="margin-left:auto">●&nbsp;synced</span>
-</footer>
+<div style="display:none"><span id="count"></span><span id="value"></span><span id="syncState"></span></div>
 </main>
 </div>
 
@@ -469,7 +510,7 @@
       </div>
     </div>
     <div id="setMsg"></div>
-    <div class="modal-actions"><button onclick="closeSettings()">Close</button></div>
+    <div class="modal-actions"><button onclick="logout()" style="border-color:var(--danger);color:var(--danger)">⎋ Log out</button><button onclick="closeSettings()">Close</button></div>
   </div>
 </div>
 
@@ -516,6 +557,16 @@
   </div>
 </div>
 
+<!-- row + surface menus -->
+<div id="surfaceMenu" class="rowmenu hidden">
+  <button onclick="toggleAllGroups();closeMenus()">Expand / collapse all</button>
+  <button onclick="exportCSV();closeMenus()">Export CSV</button>
+  <button onclick="exportPDF();closeMenus()">Export PDF</button>
+  <button onclick="exportJSON();closeMenus()">Backup (JSON)</button>
+  <button onclick="document.getElementById('importFile').click();closeMenus()">Import CSV / JSON</button>
+</div>
+<div id="rowMenuPop" class="rowmenu hidden"></div>
+
 <!-- print area (PDF) -->
 <div id="printArea"></div>
 
@@ -539,7 +590,7 @@ let collapsed=new Set(JSON.parse(localStorage.getItem('ps_collapsed')||'[]'));
 const ACCENTS=[['Green','#3fb950'],['Blue','#58a6ff'],['Purple','#a371f7'],['Orange','#db6d28'],['Pink','#ec6cb9'],['Teal','#2dd4bf'],['Red','#f85149']];
 let viewMode=localStorage.getItem('ps_view')||'table';
 let section='inventory';
-let groupBy='category';
+let groupBy='none';
 let activeEffect='';
 let activeTag='';
 let journal=[];
@@ -554,8 +605,8 @@ const CATCOLORS={'AAS / Hormone':'#f85149','Peptide':'#a371f7','Injectable Amino
   'Pharma / Rx':'#d29922','Ancillary':'#db6d28','Research Compound':'#ec6cb9',
   'Supplement':'#3fb950','Supplement – Gut':'#2ea043','Raw Material':'#8b949e'};
 const DEFAULT_CATS=['AAS / Hormone','Peptide','Injectable Amino','Pharma / Rx','Ancillary','Research Compound','Supplement','Supplement – Gut','Raw Material'];
-const COLS=[['name','Product'],['form','Form'],['qty','Qty'],
-  ['dose','Dose'],['uses','Use Cases'],['price','Price'],['status','Status'],['','']];
+const COLS=[['name','Product'],['qty','Stock'],['form','Form'],['price','Price'],['status','Status'],['','']];
+const ICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v5l-3.4 8.4A2.5 2.5 0 0 0 8.9 20h6.2a2.5 2.5 0 0 0 2.3-3.6L14 8V3"/></svg>';
 
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function num(v){const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n}
@@ -655,7 +706,6 @@ async function logout(){await sb.auth.signOut();location.reload();}
 // ---------- app ----------
 async function enterApp(){
   hide('authGate');show('app');stopBg();
-  document.getElementById('whoami').textContent=user.email;
   updateViewSeg();
   await loadItems();
   setSection('inventory');
@@ -672,10 +722,11 @@ function render(){
   const isIdea=i=>(i.status||'')===IDEA;
   const inv=items.filter(i=>!isIdea(i));  // real inventory (ideas excluded)
   const cats=[...new Set(inv.map(i=>i.category))].sort();
-  const cf=document.getElementById('catFilter');
-  if(cf) cf.innerHTML='<option value="">All categories ('+inv.length+')</option>'+cats.map(c=>'<option value="'+esc(c)+'"'+(activeCat===c?' selected':'')+'>'+esc(c)+' ('+inv.filter(i=>i.category===c).length+')</option>').join('');
+  document.getElementById('catTabs').innerHTML=
+    '<button class="cattab'+(activeCat===''?' active':'')+'" onclick="setCat(\'\')">All <span class="n">'+inv.length+'</span></button>'+
+    cats.map(c=>'<button class="cattab'+(activeCat===c?' active':'')+'" onclick="setCat(\''+c.replace(/'/g,"\\'")+'\')">'+esc(c)+' <span class="n">'+inv.filter(i=>i.category===c).length+'</span></button>').join('');
   document.getElementById('head').innerHTML=COLS.map(([k,l])=>{
-    if(!k)return '<th></th>';
+    if(!k)return '<th style="text-align:right"><button class="iconbtn" onclick="toggleSurfaceMenu(event)">⋮</button></th>';
     const a=sortKey===k?'<span class="sortarrow">'+(sortDir>0?'▲':'▼')+'</span>':'';
     return '<th onclick="sortBy(\''+k+'\')">'+l+' '+a+'</th>';}).join('');
   // sidebar effect filters
@@ -685,6 +736,8 @@ function render(){
   const alltags=[...new Set(inv.flatMap(parseTags))].sort();
   const stag=document.getElementById('tagFilter');
   if(stag) stag.innerHTML='<option value="">All tags</option>'+alltags.map(t=>'<option value="'+esc(t)+'"'+(activeTag===t?' selected':'')+'>'+esc(t)+'</option>').join('');
+  const fc=(activeEffect?1:0)+(activeTag?1:0)+(activeStatus?1:0);
+  const fcE=document.getElementById('filtCount');if(fcE){fcE.textContent=fc;fcE.classList.toggle('hidden',fc===0);}
   // header stats
   const totalVal=inv.reduce((s,i)=>s+(num(i.price)||0),0);
   const onway=inv.filter(i=>i.status==='On the Way').length;
@@ -699,10 +752,11 @@ function render(){
   const overview=section==='overview', cyc=section==='cycles', special=overview||cyc;
   document.getElementById('overview').classList.toggle('hidden',!overview);
   document.getElementById('cycles').classList.toggle('hidden',!cyc);
+  document.getElementById('surface').classList.toggle('hidden',special);
   document.getElementById('toolbar').classList.toggle('hidden',special);
   if(special)document.getElementById('bulkbar').classList.add('hidden');
-  document.getElementById('tableview').classList.toggle('hidden',special||viewMode==='cards');
-  document.getElementById('cardview').classList.toggle('hidden',special||viewMode!=='cards');
+  document.getElementById('tableview').classList.toggle('hidden',viewMode==='cards');
+  document.getElementById('cardview').classList.toggle('hidden',viewMode!=='cards');
   if(overview){renderOverview(inv,ideaItems);document.getElementById('empty').style.display='none';
     document.getElementById('count').textContent='';document.getElementById('value').innerHTML='';return;}
   if(cyc){renderCycles();document.getElementById('empty').style.display='none';
@@ -726,43 +780,41 @@ function render(){
     return x<y?-sortDir:x>y?sortDir:0;};
   const rowHTML=i=>{
     const st=i.status||'In Stock';
-    const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':st===IDEA?'b-idea':'b-out';
     const lo=isLow(i);
-    return '<tr class="'+(lo?'low':'')+'">'+
-      '<td class="name"><input type="checkbox" class="selbox" '+(selected.has(i.id)?'checked':'')+' onclick="toggleSel(event,\''+i.id+'\')"><span class="lnk" onclick="showDetail(\''+i.id+'\')">'+esc(i.name)+'</span>'+prioTag(i)+(lo?'<span class="lowtag">LOW</span>':'')+expTag(i)+(i.unit?'<div class="dose">'+esc(String(i.qty??''))+' '+esc(i.unit)+'</div>':'')+(i.effect?'<div class="dose">⚙ '+esc(i.effect)+'</div>':'')+(i.source?'<div class="dose">🛒 '+esc(i.source)+'</div>':'')+(parseTags(i).length?'<div>'+tagPills(i)+'</div>':'')+'</td>'+
+    const badge=lo?'<span class="badge b-low">Low stock</span>':'<span class="badge '+(st==='In Stock'?'b-stock':st==='On the Way'?'b-way':st===IDEA?'b-idea':'b-out')+'">'+esc(st)+'</span>';
+    const sub=[(i.qty!=null&&i.qty!=='')?(esc(String(i.qty))+' '+esc(i.unit||'')).trim():'',i.uses?esc(i.uses):''].filter(Boolean).join(' • ');
+    return '<tr>'+
+      '<td><div class="prodcell"><input type="checkbox" class="selbox" '+(selected.has(i.id)?'checked':'')+' onclick="toggleSel(event,\''+i.id+'\')"><span class="iconbox">'+ICON+'</span><div><div class="prodname lnk" onclick="showDetail(\''+i.id+'\')">'+esc(i.name)+prioTag(i)+expTag(i)+'</div>'+(sub?'<div class="prodsub">'+sub+'</div>':'')+(parseTags(i).length?'<div>'+tagPills(i)+'</div>':'')+'</div></div></td>'+
+      '<td class="stockbig">'+esc(String(i.qty??'—'))+'</td>'+
       '<td>'+esc(i.form||'')+'</td>'+
-      '<td class="qty">'+esc(String(i.qty??''))+'</td>'+
-      '<td class="dose">'+esc(i.dose||'')+'</td>'+
-      '<td class="uses">'+esc(i.uses||'')+'</td>'+
-      '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'')+'</td>'+
-      '<td><span class="badge '+stc+'">'+esc(st)+'</span>'+(st==='On the Way'?'<label class="arrived" title="Tick when it arrives — moves to In Stock"><input type="checkbox" onchange="receive(\''+i.id+'\',this)"> arrived</label>':'')+'</td>'+
-      '<td class="rowbtns">'+(st===IDEA?'<button title="I bought it — move to inventory" onclick="moveToInventory(\''+i.id+'\')">➕</button>':'')+'<button title="Duplicate" onclick="duplicateItem(\''+i.id+'\')">⧉</button><button title="Edit" onclick="edit(\''+i.id+'\')">✎</button><button title="Delete" onclick="del(\''+i.id+'\')">🗑</button></td>'+
+      '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'—')+'</td>'+
+      '<td>'+badge+'</td>'+
+      '<td style="text-align:right"><button class="iconbtn" onclick="rowMenu(event,\''+i.id+'\')">⋮</button></td>'+
     '</tr>';};
   // group by category, or by effect (an item can appear under multiple effects)
   const groups={};
-  if(groupBy==='effect'){
+  if(groupBy==='none'){ groups['']=list.slice(); }
+  else if(groupBy==='effect'){
     list.forEach(i=>{const es=parseEffects(i);(es.length?es:['— No effect set —']).forEach(k=>{(groups[k]=groups[k]||[]).push(i);});});
   } else {
     list.forEach(i=>{const k=i.category||'Uncategorized';(groups[k]=groups[k]||[]).push(i);});
   }
-  const gcats=Object.keys(groups).sort();
+  const gcats=groupBy==='none'?['']:Object.keys(groups).sort();
   if(viewMode==='cards'){
     let ch='';
-    gcats.forEach(c=>{const gi=groups[c].sort(cmp),col=catColor(c);
-      const gval=gi.reduce((s,i)=>s+(num(i.price)||0),0);
-      ch+='<div class="cardgrp"><span style="color:'+col+'">●</span> '+esc(c)+' <small>'+gi.length+' · $'+gval.toFixed(0)+'</small></div>';
+    gcats.forEach(c=>{const gi=groups[c].sort(cmp);
+      if(c!==''){const col=catColor(c),gval=gi.reduce((s,i)=>s+(num(i.price)||0),0);
+        ch+='<div class="cardgrp"><span style="color:'+col+'">●</span> '+esc(c)+' <small>'+gi.length+' · $'+gval.toFixed(0)+'</small></div>';}
       ch+=gi.map(cardHTML).join('');});
     document.getElementById('cardview').innerHTML=ch;
   } else {
     let html='';
     gcats.forEach(c=>{
-      const gi=groups[c].sort(cmp), col=catColor(c), open=!collapsed.has(c);
-      const gval=gi.reduce((s,i)=>s+(num(i.price)||0),0);
-      html+='<tr class="grouphdr" onclick="toggleGroup(\''+c.replace(/'/g,"\\'")+'\')">'+
-        '<td colspan="8"><span class="gtoggle">'+(open?'▾':'▸')+'</span>'+
-        '<span style="color:'+col+'">●</span> <b>'+esc(c)+'</b>'+
-        '<span class="gcount">'+gi.length+' item'+(gi.length!==1?'s':'')+' · $'+gval.toFixed(0)+'</span></td></tr>';
-      if(open) html+=gi.map(rowHTML).join('');
+      const gi=groups[c].sort(cmp);
+      if(c!==''){const col=catColor(c),open=!collapsed.has(c),gval=gi.reduce((s,i)=>s+(num(i.price)||0),0);
+        html+='<tr class="grouphdr" onclick="toggleGroup(\''+c.replace(/'/g,"\\'")+'\')"><td colspan="6"><span class="gtoggle">'+(open?'▾':'▸')+'</span><span style="color:'+col+'">●</span> <b>'+esc(c)+'</b><span class="gcount">'+gi.length+' · $'+gval.toFixed(0)+'</span></td></tr>';
+        if(open)html+=gi.map(rowHTML).join('');
+      } else { html+=gi.map(rowHTML).join(''); }
     });
     document.getElementById('rows').innerHTML=html;
   }
@@ -848,8 +900,20 @@ function setSection(s){section=s;selected.clear();
   closeNav();render();}
 function toggleNav(){document.getElementById('app').classList.toggle('navopen');}
 function closeNav(){document.getElementById('app').classList.remove('navopen');}
-function toggleTools(){document.getElementById('toolsPop').classList.toggle('hidden');}
-function closeTools(){document.getElementById('toolsPop').classList.add('hidden');}
+function toggleFilters(){document.getElementById('filtPop').classList.toggle('hidden');}
+function clearFilters(){activeEffect='';activeTag='';activeStatus='';const s=document.getElementById('statusFilter');if(s)s.value='';render();}
+function closeMenus(){document.getElementById('rowMenuPop').classList.add('hidden');document.getElementById('surfaceMenu').classList.add('hidden');}
+function toggleSurfaceMenu(e){e.stopPropagation();const m=document.getElementById('surfaceMenu');const r=e.currentTarget.getBoundingClientRect();m.style.top=(r.bottom+6)+'px';m.style.left=Math.max(8,r.right-190)+'px';document.getElementById('rowMenuPop').classList.add('hidden');m.classList.toggle('hidden');}
+function rowMenu(e,id){e.stopPropagation();const i=items.find(x=>x.id===id);if(!i)return;const st=i.status||'In Stock';
+  const m=document.getElementById('rowMenuPop');
+  m.innerHTML='<button onclick="closeMenus();showDetail(\''+id+'\')">Details</button>'+
+    (st===IDEA?'<button onclick="closeMenus();moveToInventory(\''+id+'\')">Move to inventory</button>':'')+
+    (st==='On the Way'?'<button onclick="closeMenus();receive(\''+id+'\')">Mark arrived</button>':'')+
+    '<button onclick="closeMenus();edit(\''+id+'\')">Edit</button>'+
+    '<button onclick="closeMenus();duplicateItem(\''+id+'\')">Duplicate</button>'+
+    '<button onclick="closeMenus();del(\''+id+'\')" style="color:var(--danger)">Delete</button>';
+  document.getElementById('surfaceMenu').classList.add('hidden');
+  const r=e.currentTarget.getBoundingClientRect();m.style.top=(r.bottom+4)+'px';m.style.left=Math.max(8,r.right-172)+'px';m.classList.remove('hidden');}
 // ---------- bulk select ----------
 function toggleSel(e,id){e.stopPropagation();if(selected.has(id))selected.delete(id);else selected.add(id);updateBulkBar();}
 function selectAllShown(){lastShown.forEach(id=>selected.add(id));render();}
@@ -1278,7 +1342,10 @@ document.getElementById('statusFilter').onchange=e=>{activeStatus=e.target.value
 document.getElementById('groupBy').onchange=e=>{groupBy=e.target.value;render()};
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
-document.addEventListener('click',e=>{const m=document.querySelector('.toolsmenu');if(m&&!m.contains(e.target))closeTools();});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.filtwrap'))document.getElementById('filtPop').classList.add('hidden');
+  if(!e.target.closest('.rowmenu')&&!e.target.closest('.iconbtn'))closeMenus();
+});
 boot();
 </script>
 </body>
