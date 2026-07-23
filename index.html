@@ -19,6 +19,7 @@
 <meta name="twitter:title" content="PharmaStock — Personal Inventory Tracker">
 <meta name="twitter:description" content="Your personal supplement & compound inventory, synced across your devices.">
 <meta name="twitter:image" content="https://pharmastocker.com/og-image.png">
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 <style>
   :root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#2a3140;--txt:#e6edf3;
     --muted:#8b949e;--accent:#3fb950;--accent2:#58a6ff;--warn:#d29922;--danger:#f85149;--chip:#21262d;}
@@ -299,6 +300,7 @@
     <p id="authSub">Log in to your inventory.</p>
     <div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="Email"></div>
     <div class="field"><label>Password</label><input id="authPass" type="password" autocomplete="current-password" placeholder="Password"></div>
+    <div style="display:flex;justify-content:center;margin:10px 0 14px"><div id="hcap" class="h-captcha" data-sitekey="05aa58b8-8a6e-4d62-88ce-a8cebba8415c" data-theme="dark"></div></div>
     <button class="btn-primary" id="authBtn" onclick="doAuth()">Log In</button>
     <div class="switch" id="authSwitch">No account yet? <a onclick="toggleAuth()">Sign up</a></div>
     <div id="authMsg"></div>
@@ -635,10 +637,13 @@ async function doAuth(){
   const password=document.getElementById('authPass').value;
   const box=document.getElementById('authMsg');
   if(!email||!password){box.innerHTML='<div class="msg err">Enter email and password.</div>';return;}
+  const captchaToken=(window.hcaptcha&&hcaptcha.getResponse)?hcaptcha.getResponse():'';
+  if(!captchaToken){box.innerHTML='<div class="msg err">Please complete the “I’m human” check.</div>';return;}
   box.innerHTML='<div class="msg">Working…</div>';
   let res;
-  if(signupMode) res=await sb.auth.signUp({email,password});
-  else res=await sb.auth.signInWithPassword({email,password});
+  if(signupMode) res=await sb.auth.signUp({email,password,options:{captchaToken}});
+  else res=await sb.auth.signInWithPassword({email,password,options:{captchaToken}});
+  if(window.hcaptcha&&hcaptcha.reset)hcaptcha.reset();
   if(res.error){box.innerHTML='<div class="msg err">'+esc(res.error.message)+'</div>';return;}
   if(signupMode && !res.data.session){
     box.innerHTML='<div class="msg ok">Account created! Check your email to confirm, then log in.</div>';return;
