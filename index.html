@@ -478,10 +478,13 @@
           <option>Tablet</option><option>Softgel</option><option>Powder</option>
           <option>Liquid</option><option>Pen</option><option>Kit</option><option>Compound</option>
         </select></div>
-      <div class="field"><label>Qty on Hand</label><input id="f_qty"></div>
+      <div class="field"><label>Qty on Hand</label><input id="f_qty" oninput="calcTotal()"></div>
       <div class="field"><label>Unit</label><input id="f_unit" placeholder="Vials, Caps, Box…"></div>
       <div class="field"><label>Dose / Conc.</label><input id="f_dose" placeholder="100 mg/cap"></div>
-      <div class="field"><label>Price ($)</label><input id="f_price" type="number" step="0.01"></div>
+      <div class="field"><label>Unit price ($)</label><input id="f_unitprice" type="number" step="0.01" placeholder="per vial / strip / bottle" oninput="calcTotal()"></div>
+      <div class="field"><label>Per <span style="text-transform:none;letter-spacing:0">(1 = vial/bottle, 10 = strip)</span></label><input id="f_pack" type="number" step="1" placeholder="1" oninput="calcTotal()"></div>
+      <div class="field"><label>Total price ($)</label><input id="f_price" type="number" step="0.01" oninput="markManualTotal()"></div>
+      <div class="field"><label>&nbsp;</label><div id="priceHint" style="padding:9px 0;color:var(--muted);font-size:12px;min-height:18px"></div></div>
       <div class="field"><label>Status</label>
         <select id="f_status"><option>In Stock</option><option>On the Way</option><option>Out</option><option>Purchase Idea</option></select></div>
       <div class="field"><label>Priority <span style="text-transform:none;letter-spacing:0">(for ideas)</span></label>
@@ -958,7 +961,7 @@ function showDetail(id){const i=items.find(x=>x.id===id);if(!i)return;
   const st=i.status||'In Stock';
   const stc=st==='In Stock'?'b-stock':st==='On the Way'?'b-way':st===IDEA?'b-idea':'b-out';
   document.getElementById('detailTitle').innerHTML=esc(i.name)+prioTag(i)+' <span class="badge '+stc+'" style="font-size:11px;vertical-align:middle">'+esc(st)+'</span>';
-  const D=[['Category',i.category],['Effect',i.effect],['Form',i.form],['Quantity',(i.qty!=null&&i.qty!=='')?((i.qty)+' '+(i.unit||'')).trim():''],['Dose',i.dose],['Price',(i.price!=null&&i.price!=='')?'$'+Number(i.price).toFixed(0):''],['Reorder at',i.reorder],['Expiry',i.expiry],['Source',i.source],['Tags',parseTags(i).join(', ')],['Use cases',i.uses],['Notes',i.notes]];
+  const D=[['Category',i.category],['Effect',i.effect],['Form',i.form],['Quantity',(i.qty!=null&&i.qty!=='')?((i.qty)+' '+(i.unit||'')).trim():''],['Dose',i.dose],['Unit price',(i.unit_price!=null&&i.unit_price!=='')?('$'+i.unit_price+(i.pack&&Number(i.pack)!==1?(' per '+i.pack):'')):''],['Total price',(i.price!=null&&i.price!=='')?'$'+Number(i.price).toFixed(0):''],['Reorder at',i.reorder],['Expiry',i.expiry],['Source',i.source],['Tags',parseTags(i).join(', ')],['Use cases',i.uses],['Notes',i.notes]];
   document.getElementById('detailBody').innerHTML='<dl class="dl">'+D.filter(r=>r[1]).map(r=>'<dt>'+r[0]+'</dt><dd>'+esc(String(r[1]))+'</dd>').join('')+'</dl>';
   let acts=(st===IDEA?'<button onclick="closeDetail();moveToInventory(\''+i.id+'\')">➕ To inventory</button>':'')+
     '<button onclick="closeDetail();edit(\''+i.id+'\')">✎ Edit</button>'+
@@ -1239,6 +1242,8 @@ function duplicateItem(id){const i=items.find(x=>x.id===id);if(!i)return;
   document.getElementById('f_name').value=(i.name||'')+' (copy)';
   document.getElementById('f_qty').value=i.qty??'';
   document.getElementById('f_price').value=i.price??'';
+  document.getElementById('f_unitprice').value=i.unit_price??'';
+  document.getElementById('f_pack').value=i.pack??'';
   document.getElementById('overlay').classList.add('show');}
 // ---------- dashboard ----------
 function openDash(){renderDash();document.getElementById('dashOverlay').classList.add('show');}
@@ -1272,6 +1277,18 @@ function autofillFromName(){
   if(!m)return;
   ['category','form','unit','dose','uses'].forEach(f=>{if(m[f])document.getElementById('f_'+f).value=m[f];});
 }
+function calcTotal(){
+  const up=parseFloat(document.getElementById('f_unitprice').value);
+  const per=parseFloat(document.getElementById('f_pack').value)||1;
+  const qty=parseFloat(String(document.getElementById('f_qty').value).replace(/[^0-9.\-]/g,''));
+  const hint=document.getElementById('priceHint');if(!hint)return;
+  if(!isNaN(up)&&!isNaN(qty)){
+    const total=up*qty/per;
+    document.getElementById('f_price').value=Math.round(total*100)/100;
+    hint.textContent='= $'+total.toFixed(2)+' total  ('+qty+' × $'+up+(per!==1?' ÷ '+per:'')+')';
+  } else hint.textContent='';
+}
+function markManualTotal(){document.getElementById('f_unitprice').value='';document.getElementById('f_pack').value='';const h=document.getElementById('priceHint');if(h)h.textContent='';}
 function buildCatSuggest(){
   const set=new Set(DEFAULT_CATS);
   items.forEach(i=>{if(i.category)set.add(i.category);});
@@ -1284,7 +1301,8 @@ function buildEffectSuggest(){
 }
 function openModal(){const idea=section==='ideas';
   document.getElementById('modalTitle').textContent=idea?'Add Purchase Idea':'Add Item';
-  ['id','name','qty','unit','dose','price','reorder','uses','notes','category','expiry','source','effect','priority','tags'].forEach(f=>document.getElementById('f_'+f).value='');
+  ['id','name','qty','unit','dose','price','reorder','uses','notes','category','expiry','source','effect','priority','tags','unitprice','pack'].forEach(f=>document.getElementById('f_'+f).value='');
+  document.getElementById('priceHint').textContent='';
   document.getElementById('f_status').value=idea?IDEA:'In Stock';buildSuggest();buildCatSuggest();buildEffectSuggest();buildTagSuggest();document.getElementById('overlay').classList.add('show');}
 function closeModal(){document.getElementById('overlay').classList.remove('show')}
 function edit(id){const i=items.find(x=>x.id===id);if(!i)return;
@@ -1293,6 +1311,9 @@ function edit(id){const i=items.find(x=>x.id===id);if(!i)return;
   document.getElementById('f_id').value=i.id;
   ['name','category','form','qty','unit','dose','status','reorder','uses','notes','expiry','source','effect','priority','tags'].forEach(f=>document.getElementById('f_'+f).value=i[f]||'');
   document.getElementById('f_price').value=i.price??'';
+  document.getElementById('f_unitprice').value=i.unit_price??'';
+  document.getElementById('f_pack').value=i.pack??'';
+  document.getElementById('priceHint').textContent='';
   document.getElementById('overlay').classList.add('show');}
 async function saveItem(){
   const g=f=>document.getElementById('f_'+f).value.trim();
@@ -1300,7 +1321,8 @@ async function saveItem(){
   const id=g('id');
   const obj={name,category:g('category')||'Uncategorized',form:g('form'),qty:g('qty'),unit:g('unit'),
     dose:g('dose'),price:g('price')?Number(g('price')):null,status:g('status'),
-    reorder:g('reorder'),uses:g('uses'),notes:g('notes'),expiry:g('expiry')||null,source:g('source'),effect:g('effect'),priority:g('priority'),tags:g('tags')};
+    reorder:g('reorder'),uses:g('uses'),notes:g('notes'),expiry:g('expiry')||null,source:g('source'),effect:g('effect'),priority:g('priority'),tags:g('tags'),
+    unit_price:g('unitprice')?Number(g('unitprice')):null,pack:g('pack')?Number(g('pack')):null};
   setSync('saving…');
   let error;
   if(id){({error}=await sb.from('items').update(obj).eq('id',id));}
