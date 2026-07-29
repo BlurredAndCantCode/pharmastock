@@ -677,6 +677,7 @@ const COLS=[['name','Product'],['qty','Stock'],['form','Form'],['price','Price']
 const ICON='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v5l-3.4 8.4A2.5 2.5 0 0 0 8.9 20h6.2a2.5 2.5 0 0 0 2.3-3.6L14 8V3"/></svg>';
 
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function jsq(s){return esc(String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"))}
 function num(v){const n=parseFloat(String(v).replace(/[^0-9.\-]/g,''));return isNaN(n)?null:n}
 function catColor(c){if(CATCOLORS[c])return CATCOLORS[c];
   let h=0;c=c||'';for(let i=0;i<c.length;i++)h=(h*31+c.charCodeAt(i))>>>0;
@@ -792,7 +793,7 @@ function render(){
   const cats=[...new Set(inv.map(i=>i.category))].sort();
   document.getElementById('catTabs').innerHTML=
     '<button class="cattab'+(activeCat===''?' active':'')+'" onclick="setCat(\'\')">All <span class="n">'+inv.length+'</span></button>'+
-    cats.map(c=>'<button class="cattab'+(activeCat===c?' active':'')+'" onclick="setCat(\''+c.replace(/'/g,"\\'")+'\')">'+esc(c)+' <span class="n">'+inv.filter(i=>i.category===c).length+'</span></button>').join('');
+    cats.map(c=>'<button class="cattab'+(activeCat===c?' active':'')+'" onclick="setCat(\''+jsq(c)+'\')">'+esc(c)+' <span class="n">'+inv.filter(i=>i.category===c).length+'</span></button>').join('');
   document.getElementById('head').innerHTML=COLS.map(([k,l])=>{
     if(!k)return '<th style="text-align:right"><button class="iconbtn" onclick="toggleSurfaceMenu(event)">⋮</button></th>';
     const a=sortKey===k?'<span class="sortarrow">'+(sortDir>0?'▲':'▼')+'</span>':'';
@@ -880,7 +881,7 @@ function render(){
     gcats.forEach(c=>{
       const gi=groups[c].sort(cmp);
       if(c!==''){const col=catColor(c),open=!collapsed.has(c),gval=gi.reduce((s,i)=>s+(num(i.price)||0),0);
-        html+='<tr class="grouphdr" onclick="toggleGroup(\''+c.replace(/'/g,"\\'")+'\')"><td colspan="6"><span class="gtoggle">'+(open?'▾':'▸')+'</span><span style="color:'+col+'">●</span> <b>'+esc(c)+'</b><span class="gcount">'+gi.length+' · $'+gval.toFixed(0)+'</span></td></tr>';
+        html+='<tr class="grouphdr" onclick="toggleGroup(\''+jsq(c)+'\')"><td colspan="6"><span class="gtoggle">'+(open?'▾':'▸')+'</span><span style="color:'+col+'">●</span> <b>'+esc(c)+'</b><span class="gcount">'+gi.length+' · $'+gval.toFixed(0)+'</span></td></tr>';
         if(open)html+=gi.map(rowHTML).join('');
       } else { html+=gi.map(rowHTML).join(''); }
     });
