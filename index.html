@@ -355,6 +355,34 @@
   .cattab:hover{color:var(--txt)}
   .iconbtn:active{transform:scale(.9)}
   body{transition:background-color .3s ease,color .3s ease}
+  /* ===== qty steppers ===== */
+  .qtycell{display:inline-flex;align-items:center;gap:6px}
+  .qbtn{width:24px;height:24px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:15px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s,color .12s,border-color .12s;padding:0;flex:0 0 auto}
+  tr:hover .qbtn{opacity:1}
+  .qbtn:hover{color:var(--txt);border-color:#33405a}
+  @media(hover:none){.qbtn{opacity:1}}
+  /* ===== unit price in rows ===== */
+  .eaprice{font-size:11.5px;color:var(--muted);font-weight:500;margin-top:2px}
+  /* ===== toasts ===== */
+  #toasts{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center}
+  .toast{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-size:13.5px;box-shadow:0 14px 36px rgba(0,0,0,.5);animation:fadeup .2s ease;white-space:nowrap}
+  .toast.out{opacity:0;transform:translateY(6px);transition:.2s}
+  .toast .tact{background:transparent;border:none;color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;padding:2px 4px}
+  .toast .tx{background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px}
+  /* ===== command palette ===== */
+  #cmdOverlay{align-items:flex-start;padding-top:14vh}
+  .cmdpal{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.55);overflow:hidden}
+  #cmdOverlay.show .cmdpal{animation:modalin .18s cubic-bezier(.2,.7,.3,1)}
+  #cmdInput{width:100%;background:transparent;border:none;border-bottom:1px solid var(--line);border-radius:0;padding:16px 18px;font-size:15px;color:var(--txt);outline:none;box-shadow:none}
+  #cmdList{max-height:340px;overflow-y:auto;padding:6px}
+  .cmdrow{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13.5px}
+  .cmdrow.sel{background:var(--panel2)}
+  .cmdico{width:20px;text-align:center;flex:0 0 auto}
+  .cmdlbl{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cmdhintr{margin-left:auto;color:var(--muted);font-size:11.5px;white-space:nowrap;padding-left:12px}
+  .cmdempty{padding:18px;color:var(--muted);font-size:13px;text-align:center}
+  .cmdhint{display:flex;gap:16px;padding:9px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+  .cmdhint b{color:var(--txt);font-weight:600}
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -418,7 +446,7 @@
 </header>
 
 <div class="toolbar" id="toolbar">
-  <input id="search" placeholder="Search inventory…">
+  <input id="search" placeholder="Search inventory…  ⌘K">
   <div class="filtwrap">
     <button class="tbtn" onclick="toggleFilters()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg> Filters <span id="filtCount" class="badge-num hidden">0</span></button>
     <div id="filtPop" class="fpop hidden">
@@ -606,6 +634,18 @@
     <div class="modal-actions"><button onclick="closeDash()">Close</button></div>
   </div>
 </div>
+
+<!-- command palette -->
+<div class="overlay" id="cmdOverlay">
+  <div class="cmdpal">
+    <input id="cmdInput" placeholder="Search items, sections, actions…" autocomplete="off">
+    <div id="cmdList"></div>
+    <div class="cmdhint"><span><b>↑↓</b> navigate</span><span><b>↵</b> open</span><span><b>esc</b> close</span><span style="margin-left:auto"><b>⌘K</b> / <b>Ctrl K</b></span></div>
+  </div>
+</div>
+
+<!-- toasts -->
+<div id="toasts"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -813,9 +853,9 @@ function render(){
     const sub=[(i.qty!=null&&i.qty!=='')?(esc(String(i.qty))+' '+esc(i.unit||'')).trim():'',i.uses?esc(i.uses):''].filter(Boolean).join(' • ');
     return '<tr>'+
       '<td><div class="prodcell"><input type="checkbox" class="selbox" '+(selected.has(i.id)?'checked':'')+' onclick="toggleSel(event,\''+i.id+'\')"><span class="iconbox">'+ICON+'</span><div><div class="prodname lnk" onclick="showDetail(\''+i.id+'\')">'+esc(i.name)+prioTag(i)+expTag(i)+'</div>'+(sub?'<div class="prodsub">'+sub+'</div>':'')+(parseTags(i).length?'<div>'+tagPills(i)+'</div>':'')+'</div></div></td>'+
-      '<td class="stockbig">'+esc(String(i.qty??'—'))+'</td>'+
+      '<td class="stockbig"><div class="qtycell"><button class="qbtn" title="−1" onclick="stepQty(event,\''+i.id+'\',-1)">−</button><span>'+esc(String(i.qty??'—'))+'</span><button class="qbtn" title="+1" onclick="stepQty(event,\''+i.id+'\',1)">+</button></div></td>'+
       '<td>'+esc(i.form||'')+'</td>'+
-      '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'—')+'</td>'+
+      '<td class="price">'+(i.price!=null&&i.price!==''?'$'+Number(i.price).toFixed(0):'—')+eaHTML(i)+'</td>'+
       '<td>'+badge+'</td>'+
       '<td style="text-align:right"><button class="iconbtn" onclick="rowMenu(event,\''+i.id+'\')">⋮</button></td>'+
     '</tr>';};
@@ -953,9 +993,16 @@ async function bulkStatus(s){if(!selected.size)return;setSync('updating…');
   const {error}=await sb.from('items').update({status:s}).in('id',[...selected]);
   if(error){setSync('error',true);alert(error.message);return;}selected.clear();await loadItems();}
 async function bulkDelete(){if(!selected.size)return;
-  if(!confirm('Delete '+selected.size+' selected item(s)? This cannot be undone.'))return;
+  if(!confirm('Delete '+selected.size+' selected item(s)?'))return;
+  const rows=items.filter(x=>selected.has(x.id));
   setSync('deleting…');const {error}=await sb.from('items').delete().in('id',[...selected]);
-  if(error){setSync('error',true);alert(error.message);return;}selected.clear();await loadItems();}
+  if(error){setSync('error',true);alert(error.message);return;}selected.clear();await loadItems();
+  toast('Deleted '+rows.length+' item'+(rows.length!==1?'s':''),{action:'Undo',onAction:async()=>{
+    setSync('restoring…');
+    const {error:e2}=await sb.from('items').insert(rows);
+    if(e2){setSync('error',true);alert('Could not restore: '+e2.message);return;}
+    await loadItems();toast('Restored '+rows.length+' item'+(rows.length!==1?'s':''));
+  }});}
 // ---------- item detail ----------
 function showDetail(id){const i=items.find(x=>x.id===id);if(!i)return;
   const st=i.status||'In Stock';
@@ -1083,7 +1130,7 @@ function renderCycles(){
     meta.push(rows.length+' compound'+(rows.length!==1?'s':''));
     h+='<div class="cyc-card" id="cyccard-'+c.id+'"><div class="cyc-head"><div><div class="cyc-title">'+esc(c.title||'Untitled cycle')+'</div>'+
       '<div class="cyc-meta">'+meta.join(' · ')+'</div></div>'+
-      '<div class="rowbtns"><button onclick="exportCyclePDF(\''+c.id+'\')" title="Save as PDF">🖨</button><button onclick="exportCyclePNG(\''+c.id+'\')" title="Save as PNG">🖼</button><button onclick="openCycle(\''+c.id+'\')" title="Edit">✎</button><button onclick="deleteCycle(\''+c.id+'\')" title="Delete">🗑</button></div></div>';
+      '<div class="rowbtns"><button onclick="exportCyclePDF(\''+c.id+'\')" title="Save as PDF">🖨</button><button onclick="exportCyclePNG(\''+c.id+'\')" title="Save as PNG">🖼</button><button onclick="duplicateCycle(\''+c.id+'\')" title="Duplicate">⧉</button><button onclick="openCycle(\''+c.id+'\')" title="Edit">✎</button><button onclick="deleteCycle(\''+c.id+'\')" title="Delete">🗑</button></div></div>';
     Object.keys(groups).forEach(g=>{
       h+='<div class="cyc-group">'+esc(g)+'</div><table class="cyc-table"><tr><th>Compound</th><th>Dosing</th><th>Frequency</th></tr>';
       groups[g].forEach(r=>{h+='<tr><td>'+esc(r.compound||'')+'</td><td>'+esc(r.dosing||'')+'</td><td>'+esc(r.frequency||'')+'</td></tr>';});
@@ -1155,6 +1202,11 @@ async function saveCycle(){
   else{obj.user_id=user.id;({error}=await sb.from('cycles').insert(obj));}
   if(error){setSync('error',true);alert(error.message);return;}
   closeCycle();await loadCycles();}
+function duplicateCycle(id){
+  openCycle(id);
+  document.getElementById('cy_id').value='';
+  document.getElementById('cycleModalTitle').textContent='New Cycle (copy)';
+  const n=document.getElementById('cy_name');n.value=(n.value||'Cycle')+' (copy)';}
 async function deleteCycle(id){const c=cycles.find(x=>x.id===id);
   if(!confirm('Delete cycle "'+((c&&c.title)||'')+'"?'))return;
   const {error}=await sb.from('cycles').delete().eq('id',id);
@@ -1264,6 +1316,67 @@ function renderDash(){
     h+='<div class="barrow"><div class="lbl" title="'+esc(c)+'">'+esc(c)+'</div><div class="barwrap"><div class="bar" style="width:'+(v/maxC*100)+'%;background:'+catColor(c)+'"></div></div><div class="val">$'+v.toFixed(0)+'</div></div>';});
   document.getElementById('dashBody').innerHTML=h;}
 
+// ---------- qty steppers ----------
+function eaHTML(i){if(i.unit_price==null||i.unit_price==='')return '';
+  const up=Number(i.unit_price);if(isNaN(up))return '';
+  const per=(i.pack!=null&&Number(i.pack)>1)?' / '+Number(i.pack):' ea';
+  return '<div class="eaprice">$'+(up%1?up.toFixed(2):up.toFixed(0))+per+'</div>';}
+const _qtyTimers={};
+function stepQty(e,id,d){e.stopPropagation();
+  const i=items.find(x=>x.id===id);if(!i)return;
+  const cur=num(i.qty)??0;
+  const next=Math.max(0,cur+d);
+  if(next===cur)return;
+  i.qty=String(next);
+  render();
+  clearTimeout(_qtyTimers[id]);
+  _qtyTimers[id]=setTimeout(async()=>{
+    setSync('saving…');
+    const {error}=await sb.from('items').update({qty:i.qty}).eq('id',id);
+    if(error){setSync('error',true);toast('Could not save quantity: '+esc(error.message));loadItems();return;}
+    setSync('synced');
+  },600);}
+// ---------- toasts ----------
+function toast(msg,opts){
+  opts=opts||{};
+  const wrap=document.getElementById('toasts');if(!wrap)return;
+  const t=document.createElement('div');t.className='toast';
+  t.innerHTML='<span>'+msg+'</span>'+(opts.action?'<button class="tact">'+esc(opts.action)+'</button>':'')+'<button class="tx">✕</button>';
+  const dismiss=()=>{t.classList.add('out');setTimeout(()=>t.remove(),200);};
+  if(opts.action)t.querySelector('.tact').onclick=()=>{dismiss();if(opts.onAction)opts.onAction();};
+  t.querySelector('.tx').onclick=dismiss;
+  wrap.appendChild(t);
+  setTimeout(dismiss,opts.ms||(opts.action?7000:2600));}
+// ---------- command palette ----------
+let cmdIdx=0,cmdItems=[];
+function openCmd(){if(!user)return;
+  document.getElementById('cmdOverlay').classList.add('show');
+  const inp=document.getElementById('cmdInput');inp.value='';cmdIdx=0;renderCmd('');
+  setTimeout(()=>inp.focus(),30);}
+function closeCmd(){document.getElementById('cmdOverlay').classList.remove('show');}
+function cmdSources(){
+  const secs=[['overview','Overview'],['inventory','Inventory'],['reorder','Restock'],['ideas','Purchase Ideas'],['cycles','Cycles']]
+    .map(([s,l])=>({t:'section',label:l,hint:'Go to section',run:()=>setSection(s)}));
+  const acts=[
+    {t:'action',label:'Add item',hint:'Action',run:()=>openModal()},
+    {t:'action',label:'Export CSV',hint:'Action',run:()=>exportCSV()},
+    {t:'action',label:'Export PDF',hint:'Action',run:()=>exportPDF()},
+    {t:'action',label:'Backup JSON',hint:'Action',run:()=>exportJSON()},
+    {t:'action',label:'Switch theme',hint:'Action',run:()=>setTheme(localStorage.getItem('ps_theme')==='light'?'dark':'light')},
+    {t:'action',label:'Account settings',hint:'Action',run:()=>openSettings()}];
+  const its=items.map(i=>({t:'item',label:i.name||'',hint:(i.category||'')+((i.qty!=null&&i.qty!=='')?' · '+i.qty+' '+(i.unit||''):''),run:()=>showDetail(i.id)}));
+  return secs.concat(acts,its);}
+function renderCmd(qq){
+  qq=(qq||'').toLowerCase().trim();
+  let list=cmdSources();
+  if(qq)list=list.filter(o=>(o.label+' '+o.hint).toLowerCase().includes(qq));
+  cmdItems=list.slice(0,12);
+  if(cmdIdx>=cmdItems.length)cmdIdx=0;
+  document.getElementById('cmdList').innerHTML=cmdItems.length?cmdItems.map((o,x)=>
+    '<div class="cmdrow'+(x===cmdIdx?' sel':'')+'" onmouseenter="cmdIdx='+x+';renderCmdSel()" onclick="runCmd('+x+')"><span class="cmdico">'+(o.t==='item'?'💊':o.t==='section'?'▸':'⚡')+'</span><span class="cmdlbl">'+esc(o.label)+'</span><span class="cmdhintr">'+esc(o.hint)+'</span></div>').join('')
+    :'<div class="cmdempty">No matches.</div>';}
+function renderCmdSel(){[...document.querySelectorAll('.cmdrow')].forEach((el,x)=>el.classList.toggle('sel',x===cmdIdx));}
+function runCmd(x){const o=cmdItems[x];if(!o)return;closeCmd();o.run();}
 // ---------- CRUD (synced) ----------
 function buildSuggest(){
   const seen={},opts=[];
@@ -1328,14 +1441,19 @@ async function saveItem(){
   if(id){({error}=await sb.from('items').update(obj).eq('id',id));}
   else{obj.user_id=user.id;({error}=await sb.from('items').insert(obj));}
   if(error){setSync('error: '+error.message,true);alert(error.message);return;}
-  closeModal();await loadItems();
+  closeModal();await loadItems();toast('Saved ✓');
 }
-async function del(id){const i=items.find(x=>x.id===id);
-  if(!confirm('Delete "'+i.name+'"?'))return;
+async function del(id){const i=items.find(x=>x.id===id);if(!i)return;
   setSync('deleting…');
   const {error}=await sb.from('items').delete().eq('id',id);
   if(error){setSync('error',true);alert(error.message);return;}
   await loadItems();
+  toast('Deleted “'+esc(i.name)+'”',{action:'Undo',onAction:async()=>{
+    setSync('restoring…');
+    const {error:e2}=await sb.from('items').insert(i);
+    if(e2){setSync('error',true);alert('Could not restore: '+e2.message);return;}
+    await loadItems();toast('Restored “'+esc(i.name)+'”');
+  }});
 }
 async function importStarter(){
   if(!confirm('Load your 128 starter items into your account?'))return;
@@ -1393,7 +1511,18 @@ document.getElementById('search').oninput=e=>{q=e.target.value.toLowerCase().tri
 document.getElementById('statusFilter').onchange=e=>{activeStatus=e.target.value;render()};
 document.getElementById('groupBy').onchange=e=>{groupBy=e.target.value;render()};
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.getElementById('cmdOverlay').addEventListener('click',e=>{if(e.target.id==='cmdOverlay')closeCmd()});
+document.getElementById('cmdInput').addEventListener('input',e=>{cmdIdx=0;renderCmd(e.target.value)});
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();
+    if(document.getElementById('cmdOverlay').classList.contains('show'))closeCmd();else openCmd();return;}
+  if(document.getElementById('cmdOverlay').classList.contains('show')){
+    if(e.key==='ArrowDown'){e.preventDefault();if(cmdIdx<cmdItems.length-1){cmdIdx++;renderCmdSel();}}
+    else if(e.key==='ArrowUp'){e.preventDefault();if(cmdIdx>0){cmdIdx--;renderCmdSel();}}
+    else if(e.key==='Enter'){e.preventDefault();runCmd(cmdIdx);}
+    else if(e.key==='Escape')closeCmd();
+    return;}
+  if(e.key==='Escape')closeModal();});
 document.addEventListener('click',e=>{
   if(!e.target.closest('.filtwrap'))document.getElementById('filtPop').classList.add('hidden');
   if(!e.target.closest('.rowmenu')&&!e.target.closest('.iconbtn'))closeMenus();
