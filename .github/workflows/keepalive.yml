@@ -1,0 +1,26 @@
+name: Supabase keep-alive
+
+# Pings the database twice a week so the Supabase free tier never hits its
+# ~1-week inactivity auto-pause. Uses the public anon key (safe by design;
+# it's the same key baked into index.html — RLS protects all data).
+# If the ping fails, the workflow fails and GitHub emails the repo owner,
+# which doubles as a free "database is down" alert.
+
+on:
+  schedule:
+    - cron: '17 9 * * 1,4'   # Mondays & Thursdays 09:17 UTC
+  workflow_dispatch: {}       # allows manual "Run workflow" button
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          curl -fsS --max-time 30 \
+            "https://lmxzonnrisfzgkqfdxne.supabase.co/rest/v1/items?select=id&limit=1" \
+            -H "apikey: ${ANON_KEY}" \
+            -H "Authorization: Bearer ${ANON_KEY}" \
+            -o /dev/null -w "Supabase answered: HTTP %{http_code}\n"
+        env:
+          ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxteHpvbm5yaXNmemdrcWZkeG5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NTcxODYsImV4cCI6MjEwMDEzMzE4Nn0.y4MQaEbX3gr4MCaHCQ4reiRBI51UVRywh7TvWVMk5D0

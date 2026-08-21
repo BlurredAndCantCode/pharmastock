@@ -52,6 +52,7 @@ edit index.html  →  syntax-check the JS  →  git commit  →  git push origin
 | `migration-*.sql` | Historical one-off migrations (already applied to prod, superseded by schema-full.sql, EXCEPT see "current state" below). |
 | `SECURITY.md` | Supabase hardening checklist (RLS, captcha, leaked-password protection…). |
 | `og-image.png` | Link-preview image referenced by the OG/Twitter meta tags. |
+| `.github/workflows/keepalive.yml` | Pings Supabase twice a week (Mon/Thu) so the free tier never auto-pauses. Fails loudly → GitHub emails the owner = free downtime alert. |
 
 DB migrations are applied by **pasting SQL into the Supabase SQL Editor manually**
 ("Option B"). A direct-connection Python runner was tried and abandoned (pooler auth
@@ -97,7 +98,9 @@ pain) — don't resurrect it, manual paste is fine for how rare migrations are.
    protection. The anon key being public is fine.
 5. Free tiers are plenty (Supabase free ≈ 500MB DB / 5GB egress; Netlify 100GB).
    Supabase Pro (~$25/mo) is the upgrade path if usage ever grows.
-   Note: free Supabase pauses after ~1 week of zero activity.
+   Note: free Supabase pauses after ~1 week of zero activity — mitigated by the
+   keep-alive GitHub Action (see Files). If the site ever shows no data, check
+   whether the Supabase project is paused and hit Resume in the dashboard.
 
 ## Current state / what was in flight
 
