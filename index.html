@@ -758,8 +758,10 @@
   <button onclick="toggleAllGroups();closeMenus()">Expand / collapse all</button>
   <button onclick="exportCSV();closeMenus()">Export CSV</button>
   <button onclick="exportPDF();closeMenus()">Export PDF</button>
+  <button onclick="exportText();closeMenus()">Export text doc</button>
   <button onclick="exportJSON();closeMenus()">Backup (JSON)</button>
   <button onclick="document.getElementById('importFile').click();closeMenus()">Import CSV / JSON</button>
+  <button onclick="openTextImport();closeMenus()">Import / paste text</button>
 </div>
 <div id="rowMenuPop" class="rowmenu hidden"></div>
 
@@ -772,6 +774,26 @@
     <h2>📊 Dashboard</h2>
     <div id="dashBody"></div>
     <div class="modal-actions"><button onclick="closeDash()">Close</button></div>
+  </div>
+</div>
+
+<!-- text doc import modal -->
+<div class="overlay" id="textOverlay">
+  <div class="modal">
+    <h2>📄 Import from text</h2>
+    <p style="color:var(--muted);font-size:12.5px;margin:6px 0 10px;line-height:1.6">
+      One item per line: <b>Name | qty unit | $price</b> — only the name is required.
+      A <b>== Category ==</b> line sets the category for everything below it.
+      Lines starting with <b>#</b> are ignored. A name you already have <b>updates</b> that item instead of duplicating it.
+      Extras like <b>dose: 250mcg</b> or <b>notes: keep cold</b> work too.
+    </p>
+    <textarea id="textBox" rows="12" spellcheck="false" style="width:100%;font-family:var(--f-mono,ui-monospace,monospace);font-size:12.5px;line-height:1.6" placeholder="== Supplement ==&#10;Vitamin D3 | 90 caps | $12&#10;Magnesium Glycinate | 60 caps&#10;&#10;== Peptide ==&#10;BPC-157 | 3 vials | $45 | dose: 250mcg"></textarea>
+    <div class="modal-actions">
+      <button onclick="document.getElementById('textFile').click()">Load .txt file…</button>
+      <button class="btn-primary" onclick="importTextGo()">Import</button>
+      <button onclick="closeTextImport()">Cancel</button>
+    </div>
+    <input type="file" id="textFile" accept=".txt,.md,text/plain" style="display:none" onchange="textFileToBox(event)">
   </div>
 </div>
 
@@ -1195,6 +1217,74 @@ function importFile(e){const file=e.target.files[0];if(!file)return;const rd=new
     if(error){setSync('error',true);alert(error.message);return;}
     e.target.value='';await loadItems();alert('Imported '+clean.length+' item(s).');
   };rd.readAsText(file);}
+// ---------- plain-text doc export / import ----------
+function exportText(){
+  const inv=items.filter(i=>(i.status||'')!==IDEA);
+  const groups={};inv.forEach(i=>{const k=i.category||'Uncategorized';(groups[k]=groups[k]||[]).push(i);});
+  let out='# PharmaStock inventory — '+new Date().toLocaleDateString()+'\n';
+  out+='# One item per line:  Name | qty unit | $price\n';
+  out+='# "== Category ==" lines set the category for the lines below them.\n';
+  out+='# Lines starting with # are ignored. Edit freely, then import this file back.\n';
+  out+='# Re-importing updates items with matching names — no duplicates.\n\n';
+  Object.keys(groups).sort().forEach(c=>{
+    out+='== '+c+' ==\n';
+    groups[c].sort((a,b)=>String(a.name).localeCompare(String(b.name))).forEach(i=>{
+      const bits=[i.name];
+      if(i.qty!=null&&i.qty!=='')bits.push((i.qty+' '+(i.unit||'')).trim());
+      if(i.price!=null&&i.price!=='')bits.push('$'+Number(i.price));
+      const st=i.status||'In Stock';if(st!=='In Stock')bits.push(st);
+      out+=bits.join(' | ')+'\n';});
+    out+='\n';});
+  const b=new Blob([out],{type:'text/plain'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download='pharmastock_inventory.txt';a.click();}
+function openTextImport(){document.getElementById('textBox').value='';document.getElementById('textOverlay').classList.add('show');}
+function closeTextImport(){document.getElementById('textOverlay').classList.remove('show');}
+function textFileToBox(e){const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{document.getElementById('textBox').value=rd.result;};rd.readAsText(f);e.target.value='';}
+function parseTextDoc(text){
+  const rows=[];let cat='';
+  const KEYS=['dose','form','unit','source','tags','effect','reorder','expiry','notes','uses','priority','status','category','qty','price'];
+  String(text||'').split(/\r?\n/).forEach(raw=>{
+    const line=raw.trim();
+    if(!line||line.startsWith('#')||line.startsWith('//'))return;
+    const m=line.match(/^=+\s*(.+?)\s*=+$/)||line.match(/^\[\s*(.+?)\s*\]$/);
+    if(m){cat=m[1];return;}
+    const parts=line.split('|').map(s=>s.trim()).filter(Boolean);
+    if(!parts.length)return;
+    const o={name:parts[0]};
+    if(cat)o.category=cat;
+    parts.slice(1).forEach(p=>{
+      const kv=p.match(/^([A-Za-z ]+?)\s*:\s*(.+)$/);
+      if(kv&&KEYS.includes(kv[1].trim().toLowerCase())){o[kv[1].trim().toLowerCase()]=kv[2].trim();return;}
+      if(/^\$\s*[\d.,]+$/.test(p)){o.price=p;return;}
+      const q=p.match(/^([\d.]+)\s*(.*)$/);
+      if(q){o.qty=q[1];if(q[2])o.unit=q[2];return;}
+      const st=p.toLowerCase();
+      if(st==='out')o.status='Out';
+      else if(st==='on the way'||st==='ordered'||st==='otw')o.status='On the Way';
+      else if(st==='in stock')o.status='In Stock';
+      else if(st==='idea'||st==='wishlist'||st==='purchase idea')o.status=IDEA;
+      else o.notes=o.notes?o.notes+'; '+p:p;});
+    if(o.price!=null){const p=Number(String(o.price).replace(/[^0-9.\-]/g,''));o.price=isNaN(p)?null:p;}
+    rows.push(o);});
+  return rows;}
+async function importTextGo(){
+  const rows=parseTextDoc(document.getElementById('textBox').value);
+  if(!rows.length){alert('Nothing to import — add at least one line with an item name.');return;}
+  const byName={};items.forEach(i=>{byName[(i.name||'').trim().toLowerCase()]=i;});
+  const inserts=[],updates=[];
+  rows.forEach(r=>{
+    const ex=byName[r.name.trim().toLowerCase()];
+    if(ex)updates.push({id:ex.id,patch:r});
+    else inserts.push(Object.assign({user_id:user.id,category:'Uncategorized',status:'In Stock'},r));});
+  if(!confirm('Import: add '+inserts.length+' new item(s), update '+updates.length+' existing. Continue?'))return;
+  setSync('importing…');
+  if(inserts.length){const {error}=await sb.from('items').insert(inserts);
+    if(error){setSync('error',true);alert(error.message);return;}}
+  for(const u of updates){const {error}=await sb.from('items').update(u.patch).eq('id',u.id);
+    if(error){setSync('error',true);alert(error.message);return;}}
+  closeTextImport();await loadItems();
+  toast('Imported: '+inserts.length+' added, '+updates.length+' updated');}
 function setEffect(e){activeEffect=e;closeNav();render();}
 function setTag(t){activeTag=t;closeNav();render();}
 function parseTags(i){return (i.tags||'').split(',').map(t=>t.trim()).filter(Boolean);}
@@ -1646,6 +1736,7 @@ document.getElementById('dashOverlay').addEventListener('click',e=>{if(e.target.
 document.getElementById('logOverlay').addEventListener('click',e=>{if(e.target.id==='logOverlay')closeLog()});
 document.getElementById('cycleOverlay').addEventListener('click',e=>{if(e.target.id==='cycleOverlay')closeCycle()});
 document.getElementById('detailOverlay').addEventListener('click',e=>{if(e.target.id==='detailOverlay')closeDetail()});
+document.getElementById('textOverlay').addEventListener('click',e=>{if(e.target.id==='textOverlay')closeTextImport()});
 
 document.getElementById('f_name').addEventListener('input',autofillFromName);
 document.getElementById('search').oninput=e=>{q=e.target.value.toLowerCase().trim();render()};
